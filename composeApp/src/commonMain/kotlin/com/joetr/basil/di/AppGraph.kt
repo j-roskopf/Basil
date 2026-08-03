@@ -67,7 +67,7 @@ public class AppGraph(
     private val recipeExtractor = RecipeExtractor(firebase)
     private val importRepository = DefaultImportRepository(dataLayer.database, recipeExtractor)
     public val imageRepositoryPublic: DefaultImageRepository get() = imageRepository
-    private val imageUploadWorker = ImageUploadWorker(imageRepository, recipeRepository, syncService, scope)
+    private val imageUploadWorker = ImageUploadWorker(imageRepository, syncService, scope)
     private val userSettingsRepository = DefaultUserSettingsRepository(dataLayer.database, scope)
     public val updates = createAppUpdateService(scope, httpClient)
 

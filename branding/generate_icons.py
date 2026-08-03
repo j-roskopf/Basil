@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 from PIL import Image
@@ -44,6 +47,55 @@ def fit_on_canvas(
     return canvas
 
 
+def resized_rgb(master: Image.Image, size: int) -> Image.Image:
+    return master.resize((size, size), Image.Resampling.LANCZOS).convert("RGB")
+
+
+def write_desktop_packaging_icons(master: Image.Image, icons_dir: Path) -> None:
+    """Icons for Compose Desktop jpackage (DMG / MSI / Deb)."""
+    icons_dir.mkdir(parents=True, exist_ok=True)
+    resized_rgb(master, 512).save(icons_dir / "icon.png")
+
+    ico_sizes = [16, 32, 48, 64, 128, 256]
+    ico_images = [resized_rgb(master, size) for size in ico_sizes]
+    ico_images[0].save(
+        icons_dir / "icon.ico",
+        format="ICO",
+        sizes=[(s, s) for s in ico_sizes],
+        append_images=ico_images[1:],
+    )
+
+    if sys.platform != "darwin":
+        print("Skipping icon.icns (requires macOS iconutil)")
+        return
+
+    iconset = icons_dir / "icon.iconset"
+    if iconset.exists():
+        shutil.rmtree(iconset)
+    iconset.mkdir()
+
+    iconset_entries = [
+        ("icon_16x16.png", 16),
+        ("icon_16x16@2x.png", 32),
+        ("icon_32x32.png", 32),
+        ("icon_32x32@2x.png", 64),
+        ("icon_128x128.png", 128),
+        ("icon_128x128@2x.png", 256),
+        ("icon_256x256.png", 256),
+        ("icon_256x256@2x.png", 512),
+        ("icon_512x512.png", 512),
+        ("icon_512x512@2x.png", 1024),
+    ]
+    for filename, px in iconset_entries:
+        resized_rgb(master, px).save(iconset / filename)
+
+    subprocess.run(
+        ["iconutil", "-c", "icns", str(iconset), "-o", str(icons_dir / "icon.icns")],
+        check=True,
+    )
+    shutil.rmtree(iconset)
+
+
 def main() -> None:
     leaf = load_leaf()
     # Legacy / round icons: padded on cream so the leaf is not edge-cropped.
@@ -70,14 +122,13 @@ def main() -> None:
 
     web = ROOT / "composeApp/src/wasmJsMain/resources/icons"
     web.mkdir(parents=True, exist_ok=True)
-    master.resize((192, 192), Image.Resampling.LANCZOS).convert("RGB").save(web / "icon-192.png")
-    master.resize((512, 512), Image.Resampling.LANCZOS).convert("RGB").save(web / "icon-512.png")
-    master.resize((32, 32), Image.Resampling.LANCZOS).convert("RGB").save(
-        ROOT / "composeApp/src/wasmJsMain/resources/favicon.png",
-    )
+    resized_rgb(master, 192).save(web / "icon-192.png")
+    resized_rgb(master, 512).save(web / "icon-512.png")
+    resized_rgb(master, 32).save(ROOT / "composeApp/src/wasmJsMain/resources/favicon.png")
     desktop = ROOT / "composeApp/src/desktopMain/resources"
     desktop.mkdir(parents=True, exist_ok=True)
-    master.resize((256, 256), Image.Resampling.LANCZOS).convert("RGB").save(desktop / "icon.png")
+    resized_rgb(master, 256).save(desktop / "icon.png")
+    write_desktop_packaging_icons(master, desktop / "icons")
     ios = ROOT / "branding/generated/ios"
     ios.mkdir(parents=True, exist_ok=True)
     ios_icon = ios / "AppIcon-1024.png"

@@ -1,7 +1,6 @@
 package com.joetr.basil.data.recipe.sync
 
 import com.joetr.basil.data.image.DefaultImageRepository
-import com.joetr.basil.domain.repository.RecipeRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -9,7 +8,6 @@ import kotlinx.coroutines.launch
 
 public class ImageUploadWorker(
     private val imageRepository: DefaultImageRepository,
-    private val recipeRepository: RecipeRepository,
     private val syncService: RecipeSyncService,
     private val scope: CoroutineScope,
 ) {
@@ -23,12 +21,15 @@ public class ImageUploadWorker(
     }
 
     public suspend fun processPending() {
-        val pending = imageRepository.pendingUploadRecipes()
-        pending.forEach { recipe ->
+        var uploaded = false
+        imageRepository.pendingUploadRecipes().forEach { recipe ->
             val updated = imageRepository.uploadPendingForRecipe(recipe) ?: return@forEach
-            recipeRepository.save(updated)
+            // uploadPendingForRecipe already updates image_url in the DB; queue a sync push
+            // without re-saving a partial Recipe (that would wipe ingredients/steps).
+            syncService.queueRecipe(updated)
+            uploaded = true
         }
-        if (pending.isNotEmpty()) {
+        if (uploaded) {
             syncService.syncNow()
         }
     }
