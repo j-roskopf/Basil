@@ -1,6 +1,13 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+fun String.asJpackageMacSigningUserName(): String =
+    removePrefix("Developer ID Application: ")
+        .removePrefix("Developer ID Installer: ")
+        .removePrefix("3rd Party Mac Developer Application: ")
+        .removePrefix("3rd Party Mac Developer Installer: ")
+        .trim()
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidKotlinMultiplatformLibrary)
@@ -111,6 +118,23 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Basil"
             packageVersion = providers.gradleProperty("basil.versionName").getOrElse("0.1.0")
+            val iconsDir = project.layout.projectDirectory.dir("src/desktopMain/resources/icons")
+            macOS {
+                bundleID = "com.joetr.basil"
+                iconFile.set(iconsDir.file("icon.icns").asFile)
+                signing {
+                    identity.set(
+                        providers.gradleProperty("compose.desktop.mac.signing.identity")
+                            .map(String::asJpackageMacSigningUserName),
+                    )
+                }
+            }
+            windows {
+                iconFile.set(iconsDir.file("icon.ico").asFile)
+            }
+            linux {
+                iconFile.set(iconsDir.file("icon.png").asFile)
+            }
         }
     }
 }
