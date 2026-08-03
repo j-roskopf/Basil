@@ -399,7 +399,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-artifacts
-          dmg="$(find composeApp/build/compose/binaries/main/dmg -name '*.dmg' -print -quit)"
+          dmg="$(find composeApp/build/compose/binaries -path '*/dmg/*.dmg' -print -quit)"
           if [[ -z "${dmg}" ]]; then
             echo "::error::Could not find macOS DMG release artifact"
             exit 1
