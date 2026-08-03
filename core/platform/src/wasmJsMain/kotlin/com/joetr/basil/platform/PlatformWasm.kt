@@ -1,6 +1,27 @@
 package com.joetr.basil.platform
 
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.window
+
+private val resizeImageWebAsyncFn: (String, Int, Int, (String) -> Unit) -> Unit =
+    js(
+        """
+        (base64, maxLongEdge, quality, onResult) => {
+            const resize = globalThis.__basilResizeImage;
+            if (!resize) {
+                onResult(base64);
+                return;
+            }
+            resize(base64, maxLongEdge, quality)
+                .then(onResult)
+                .catch(() => onResult(base64));
+        }
+        """,
+    )
 
 private val epochMillis: () -> Double =
     js("() => Date.now()")
@@ -25,7 +46,28 @@ public actual class ImageCapture {
     }
 }
 
-public actual suspend fun resizeImage(bytes: ByteArray, maxLongEdge: Int, quality: Int): ByteArray = bytes
+@OptIn(ExperimentalEncodingApi::class, ExperimentalWasmJsInterop::class)
+public actual suspend fun resizeImage(bytes: ByteArray, maxLongEdge: Int, quality: Int): ByteArray {
+    if (bytes.isEmpty()) return bytes
+    if (!isRecognizedImage(bytes)) return bytes
+    return runCatching {
+        val base64 = Base64.Default.encode(bytes)
+        val resultBase64 = resizeImageWeb(base64, maxLongEdge, quality)
+        Base64.Default.decode(resultBase64)
+    }.getOrElse { bytes }
+}
+
+@OptIn(ExperimentalWasmJsInterop::class)
+private suspend fun resizeImageWeb(base64: String, maxLongEdge: Int, quality: Int): String =
+    suspendCoroutine { continuation ->
+        resizeImageWebAsyncFn(base64, maxLongEdge, quality, continuation::resume)
+    }
+
+private fun isRecognizedImage(bytes: ByteArray): Boolean =
+    isJpegImage(bytes) ||
+        isPngImage(bytes) ||
+        isHeicImage(bytes) ||
+        detectImageMimeType(bytes) != null
 
 public actual suspend fun readClipboardText(): String? = null
 

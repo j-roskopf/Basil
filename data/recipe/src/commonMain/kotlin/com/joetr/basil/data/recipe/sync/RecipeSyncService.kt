@@ -11,7 +11,6 @@ import com.joetr.basil.domain.model.SyncState
 import com.joetr.basil.domain.model.SyncStatus
 import com.joetr.basil.network.BasilFirebase
 import com.joetr.basil.platform.currentTimeMillis
-import com.joetr.basil.platform.platformName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -139,7 +138,6 @@ public class RecipeSyncService(
     }
 
     private suspend fun prepareImagesForSync() {
-        if (platformName() == "web") return
         stageUnhostedRecipeImages()
         uploadPendingImages()
     }

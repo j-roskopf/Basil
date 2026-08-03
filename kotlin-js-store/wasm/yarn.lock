@@ -145,6 +145,11 @@ globby@^11.0.3:
     merge2 "^1.4.1"
     slash "^3.0.0"
 
+heic2any@0.0.4:
+  version "0.0.4"
+  resolved "https://registry.yarnpkg.com/heic2any/-/heic2any-0.0.4.tgz#eddb8e6fec53c8583a6e18b65069bb5e8d19028a"
+  integrity sha512-3lLnZiDELfabVH87htnRolZ2iehX9zwpRyGNz22GKXIu0fznlblf0/ftppXKNqS26dqFSeqfIBhAmAj/uSp0cA==
+
 ignore@^5.2.0:
   version "5.3.2"
   resolved "https://registry.yarnpkg.com/ignore/-/ignore-5.3.2.tgz#3cd40e729f3643fd87cb04e50bf0eb722bc596f5"

@@ -37,4 +37,4 @@ private suspend fun SqlDriver.hasUserSchema(): Boolean =
     )
 
 private fun createSqlJsWorker(): Worker =
-    js("new Worker(new URL('@cashapp/sqldelight-sqljs-worker/sqljs.worker.js', import.meta.url))")
+    js("new Worker(new URL('basil-persistent-sqljs.worker.js', import.meta.url))")
