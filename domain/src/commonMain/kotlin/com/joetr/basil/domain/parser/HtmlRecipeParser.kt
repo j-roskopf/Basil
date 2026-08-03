@@ -323,13 +323,13 @@ public object HtmlRecipeParser {
 
     private fun meta(html: String, prop: String): String? {
         val og = Regex(
-            """<meta[^>]+property=["']${Regex.escape(prop)}["'][^>]+content=(["'])(.*?)\1""",
-            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+            """<meta[^>]+property=["']${Regex.escape(prop)}["'][^>]+content=(["'])([\s\S]*?)\1""",
+            RegexOption.IGNORE_CASE,
         ).find(html)?.groupValues?.get(2)
         if (og != null) return og
         return Regex(
-            """<meta[^>]+name=["']${Regex.escape(prop)}["'][^>]+content=(["'])(.*?)\1""",
-            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+            """<meta[^>]+name=["']${Regex.escape(prop)}["'][^>]+content=(["'])([\s\S]*?)\1""",
+            RegexOption.IGNORE_CASE,
         ).find(html)?.groupValues?.get(2)
     }
 
