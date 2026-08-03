@@ -29,9 +29,9 @@ modules:
       - ln -s /app/lib/basil/bin/Basil /app/bin/Basil
       - install -Dm644 com.joetr.basil.desktop /app/share/applications/com.joetr.basil.desktop
       - install -Dm644 com.joetr.basil.metainfo.xml /app/share/metainfo/com.joetr.basil.metainfo.xml
-      - install -Dm644 com.joetr.basil.png /app/share/icons/hicolor/512x512/apps/com.joetr.basil.png
-      - install -Dm644 com.joetr.basil.png /app/share/icons/hicolor/256x256/apps/com.joetr.basil.png
-      - install -Dm644 com.joetr.basil.png /app/share/icons/hicolor/128x128/apps/com.joetr.basil.png
+      - install -Dm644 com.joetr.basil-128.png /app/share/icons/hicolor/128x128/apps/com.joetr.basil.png
+      - install -Dm644 com.joetr.basil-256.png /app/share/icons/hicolor/256x256/apps/com.joetr.basil.png
+      - install -Dm644 com.joetr.basil-512.png /app/share/icons/hicolor/512x512/apps/com.joetr.basil.png
     sources:
       - type: dir
         path: ../build/compose/binaries/main-release/app/Basil
@@ -41,5 +41,11 @@ modules:
       - type: file
         path: com.joetr.basil.metainfo.xml
       - type: file
-        path: ../src/desktopMain/resources/icons/icon.png
-        dest-filename: com.joetr.basil.png
+        path: icons/128/com.joetr.basil.png
+        dest-filename: com.joetr.basil-128.png
+      - type: file
+        path: icons/256/com.joetr.basil.png
+        dest-filename: com.joetr.basil-256.png
+      - type: file
+        path: icons/512/com.joetr.basil.png
+        dest-filename: com.joetr.basil-512.png

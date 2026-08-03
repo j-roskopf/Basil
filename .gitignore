@@ -25,4 +25,5 @@ androidApp/google-services.json
 iosApp/**/GoogleService-Info.plist
 firebase/functions/lib/
 *.iconset/
+composeApp/flatpak/icons/
 .andy
