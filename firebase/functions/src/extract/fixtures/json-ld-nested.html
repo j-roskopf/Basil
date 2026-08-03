@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head><title>Nested JSON-LD</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "mainEntity": {
+    "@type": "Recipe",
+    "name": "Nested Curry",
+    "recipeIngredient": ["1 can coconut milk", "2 tbsp curry paste"],
+    "recipeInstructions": [
+      { "@type": "HowToStep", "text": "Simmer 20 minutes." }
+    ]
+  }
+}
+</script>
+</head>
+<body><h1>Nested Curry</h1></body>
+</html>

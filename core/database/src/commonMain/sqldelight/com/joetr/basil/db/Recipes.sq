@@ -1,0 +1,136 @@
+CREATE TABLE recipes (
+    id TEXT NOT NULL PRIMARY KEY,
+    owner_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    image_url TEXT,
+    local_image_id TEXT,
+    source_url TEXT,
+    servings INTEGER,
+    prep_minutes INTEGER,
+    cook_minutes INTEGER,
+    ingredients TEXT NOT NULL DEFAULT '[]',
+    steps TEXT NOT NULL DEFAULT '[]',
+    tags TEXT NOT NULL DEFAULT '[]',
+    notes TEXT,
+    is_favourite INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    pending_sync INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX recipes_owner_updated_idx ON recipes(owner_id, updated_at, id);
+
+CREATE TABLE recipe_outbox (
+    recipe_id TEXT NOT NULL PRIMARY KEY,
+    kind TEXT NOT NULL,
+    enqueued_at INTEGER NOT NULL
+);
+
+CREATE TABLE image_blobs (
+    id TEXT NOT NULL PRIMARY KEY,
+    recipe_id TEXT NOT NULL,
+    data BLOB NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE import_history (
+    url TEXT NOT NULL PRIMARY KEY,
+    title TEXT,
+    confidence TEXT NOT NULL,
+    imported_at INTEGER NOT NULL
+);
+
+CREATE TABLE app_settings (
+    key TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+selectAllRecipes:
+SELECT * FROM recipes WHERE deleted = 0 ORDER BY updated_at DESC;
+
+selectRecipeById:
+SELECT * FROM recipes WHERE id = ? AND deleted = 0;
+
+selectRecipeByIdAny:
+SELECT * FROM recipes WHERE id = ?;
+
+selectRecipesByOwner:
+SELECT * FROM recipes WHERE owner_id = ? AND deleted = 0;
+
+countRecipesByOwner:
+SELECT COUNT(*) FROM recipes WHERE owner_id = ? AND deleted = 0;
+
+insertRecipe:
+INSERT OR REPLACE INTO recipes(
+    id, owner_id, title, description, image_url, local_image_id, source_url,
+    servings, prep_minutes, cook_minutes, ingredients, steps, tags, notes,
+    is_favourite, created_at, updated_at, deleted, pending_sync
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+softDeleteRecipe:
+UPDATE recipes SET deleted = 1, pending_sync = 1, updated_at = ? WHERE id = ?;
+
+updateOwnerId:
+UPDATE recipes SET owner_id = ?, pending_sync = 1 WHERE owner_id = ?;
+
+selectPendingSync:
+SELECT * FROM recipes WHERE pending_sync = 1;
+
+clearPendingSync:
+UPDATE recipes SET pending_sync = 0 WHERE id = ?;
+
+markPendingSync:
+UPDATE recipes SET pending_sync = 1, updated_at = ? WHERE id = ?;
+
+enqueueOutbox:
+INSERT OR REPLACE INTO recipe_outbox(recipe_id, kind, enqueued_at) VALUES (?, ?, ?);
+
+selectOutbox:
+SELECT * FROM recipe_outbox ORDER BY enqueued_at ASC;
+
+deleteOutboxEntry:
+DELETE FROM recipe_outbox WHERE recipe_id = ?;
+
+deleteAllOutbox:
+DELETE FROM recipe_outbox;
+
+selectOutboxEntry:
+SELECT * FROM recipe_outbox WHERE recipe_id = ?;
+
+insertImageBlob:
+INSERT OR REPLACE INTO image_blobs(id, recipe_id, data, created_at) VALUES (?, ?, ?, ?);
+
+selectImageBlob:
+SELECT data FROM image_blobs WHERE id = ?;
+
+deleteImageBlob:
+DELETE FROM image_blobs WHERE id = ?;
+
+insertImportHistory:
+INSERT OR REPLACE INTO import_history(url, title, confidence, imported_at) VALUES (?, ?, ?, ?);
+
+selectImportHistory:
+SELECT * FROM import_history ORDER BY imported_at DESC LIMIT 50;
+
+upsertSetting:
+INSERT OR REPLACE INTO app_settings(key, value) VALUES (?, ?);
+
+deleteAllRecipes:
+DELETE FROM recipes;
+
+deleteAllImageBlobs:
+DELETE FROM image_blobs;
+
+selectSetting:
+SELECT value FROM app_settings WHERE key = ?;
+
+selectRecipesWithPendingImages:
+SELECT * FROM recipes
+WHERE deleted = 0
+  AND local_image_id IS NOT NULL
+  AND (image_url IS NULL OR image_url = '');
+
+updateRecipeImageUrl:
+UPDATE recipes SET image_url = ?, local_image_id = NULL, pending_sync = 1, updated_at = ? WHERE id = ?;

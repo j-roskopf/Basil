@@ -1,0 +1,456 @@
+package com.joetr.basil.ui.icons
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+@Composable
+public fun BasilIcon(
+    painter: BasilIconPainter,
+    tint: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 22.dp,
+    strokeWidth: Dp = 1.6.dp,
+) {
+    Canvas(modifier.size(size)) {
+        val stroke = Stroke(
+            width = strokeWidth.toPx(),
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round,
+        )
+        painter.draw(this, tint, stroke)
+    }
+}
+
+/** Official Google "G" mark for OAuth buttons. */
+@Composable
+public fun GoogleMark(
+    modifier: Modifier = Modifier,
+    size: Dp = 20.dp,
+) {
+    basil.ui.generated.resources.GoogleMarkAsset(modifier = modifier, size = size)
+}
+
+/** The Basil leaf used in the launcher icon and brand moments. */
+@Composable
+public fun BasilAppMark(
+    modifier: Modifier = Modifier,
+    tint: Color,
+    size: Dp = 112.dp,
+) {
+    Canvas(
+        modifier
+            .size(size)
+            .semantics { contentDescription = "Basil" },
+    ) {
+        val canvasSize = this.size
+        val leaf = Path().apply {
+            moveTo(canvasSize.width * 0.16f, canvasSize.height * 0.82f)
+            cubicTo(
+                canvasSize.width * 0.05f, canvasSize.height * 0.56f,
+                canvasSize.width * 0.24f, canvasSize.height * 0.20f,
+                canvasSize.width * 0.82f, canvasSize.height * 0.10f,
+            )
+            cubicTo(
+                canvasSize.width * 0.78f, canvasSize.height * 0.46f,
+                canvasSize.width * 0.61f, canvasSize.height * 0.79f,
+                canvasSize.width * 0.30f, canvasSize.height * 0.88f,
+            )
+            cubicTo(
+                canvasSize.width * 0.23f, canvasSize.height * 0.90f,
+                canvasSize.width * 0.18f, canvasSize.height * 0.87f,
+                canvasSize.width * 0.16f, canvasSize.height * 0.82f,
+            )
+            close()
+        }
+        drawPath(leaf, tint)
+
+        val vein = tint.copy(alpha = 0.42f)
+        val stem = tint.copy(alpha = 0.75f)
+        drawLine(
+            color = stem,
+            start = Offset(canvasSize.width * 0.18f, canvasSize.height * 0.98f),
+            end = Offset(canvasSize.width * 0.60f, canvasSize.height * 0.30f),
+            strokeWidth = canvasSize.minDimension * 0.045f,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = vein,
+            start = Offset(canvasSize.width * 0.42f, canvasSize.height * 0.59f),
+            end = Offset(canvasSize.width * 0.69f, canvasSize.height * 0.42f),
+            strokeWidth = canvasSize.minDimension * 0.025f,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = vein,
+            start = Offset(canvasSize.width * 0.31f, canvasSize.height * 0.76f),
+            end = Offset(canvasSize.width * 0.55f, canvasSize.height * 0.72f),
+            strokeWidth = canvasSize.minDimension * 0.025f,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = vein,
+            start = Offset(canvasSize.width * 0.47f, canvasSize.height * 0.51f),
+            end = Offset(canvasSize.width * 0.43f, canvasSize.height * 0.34f),
+            strokeWidth = canvasSize.minDimension * 0.025f,
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+public fun interface BasilIconPainter {
+    public fun draw(
+        scope: androidx.compose.ui.graphics.drawscope.DrawScope,
+        tint: Color,
+        stroke: Stroke,
+    )
+}
+
+public object BasilIcons {
+    public val Search: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val center = Offset(size.width * 0.44f, size.height * 0.44f)
+            val radius = size.minDimension * 0.23f
+            drawCircle(tint, radius = radius, center = center, style = stroke)
+            drawLine(
+                tint,
+                Offset(size.width * 0.61f, size.height * 0.61f),
+                Offset(size.width * 0.82f, size.height * 0.82f),
+                stroke.width,
+                StrokeCap.Round,
+            )
+        }
+    }
+
+    public val Recipes: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val inset = size.minDimension * 0.18f
+            drawRoundRect(
+                color = tint,
+                topLeft = Offset(inset, inset * 0.9f),
+                size = Size(size.width - inset * 2, size.height - inset * 1.8f),
+                cornerRadius = CornerRadius(4f, 4f),
+                style = stroke,
+            )
+            drawLine(
+                color = tint,
+                start = Offset(inset * 1.4f, size.height * 0.42f),
+                end = Offset(size.width - inset * 1.4f, size.height * 0.42f),
+                strokeWidth = stroke.width,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = tint,
+                start = Offset(inset * 1.4f, size.height * 0.58f),
+                end = Offset(size.width - inset * 1.4f, size.height * 0.58f),
+                strokeWidth = stroke.width,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+
+    public val Discover: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val c = Offset(size.width / 2, size.height / 2)
+            val r = size.minDimension * 0.32f
+            drawCircle(tint, radius = r, center = c, style = stroke)
+            val path = Path().apply {
+                moveTo(c.x + r * 0.15f, c.y - r * 0.55f)
+                lineTo(c.x + r * 0.55f, c.y + r * 0.15f)
+                lineTo(c.x - r * 0.15f, c.y + r * 0.55f)
+                lineTo(c.x - r * 0.55f, c.y - r * 0.15f)
+                close()
+            }
+            drawPath(path, tint, style = stroke)
+        }
+    }
+
+    public val Account: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val c = Offset(size.width / 2, size.height * 0.36f)
+            drawCircle(tint, radius = size.minDimension * 0.16f, center = c, style = stroke)
+            val path = Path().apply {
+                moveTo(size.width * 0.22f, size.height * 0.82f)
+                quadraticTo(
+                    size.width * 0.5f,
+                    size.height * 0.58f,
+                    size.width * 0.78f,
+                    size.height * 0.82f,
+                )
+            }
+            drawPath(path, tint, style = stroke)
+        }
+    }
+
+    public val Clock: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val c = Offset(size.width / 2, size.height / 2)
+            drawCircle(tint, radius = size.minDimension * 0.34f, center = c, style = stroke)
+            drawLine(tint, c, Offset(c.x, c.y - size.minDimension * 0.18f), stroke.width, StrokeCap.Round)
+            drawLine(tint, c, Offset(c.x + size.minDimension * 0.14f, c.y + size.minDimension * 0.08f), stroke.width, StrokeCap.Round)
+        }
+    }
+
+    public val Tag: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val path = Path().apply {
+                moveTo(size.width * 0.18f, size.height * 0.42f)
+                lineTo(size.width * 0.18f, size.height * 0.22f)
+                lineTo(size.width * 0.55f, size.height * 0.22f)
+                lineTo(size.width * 0.82f, size.height * 0.5f)
+                lineTo(size.width * 0.55f, size.height * 0.78f)
+                lineTo(size.width * 0.18f, size.height * 0.78f)
+                close()
+            }
+            drawPath(path, tint, style = stroke)
+            drawCircle(tint, radius = size.minDimension * 0.05f, center = Offset(size.width * 0.34f, size.height * 0.38f))
+        }
+    }
+
+    public val Globe: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val c = Offset(size.width / 2, size.height / 2)
+            val r = size.minDimension * 0.34f
+            drawCircle(tint, radius = r, center = c, style = stroke)
+            drawOval(
+                color = tint,
+                topLeft = Offset(c.x - r * 0.45f, c.y - r),
+                size = Size(r * 0.9f, r * 2),
+                style = stroke,
+            )
+            drawLine(
+                tint,
+                Offset(c.x - r, c.y),
+                Offset(c.x + r, c.y),
+                stroke.width,
+                StrokeCap.Round,
+            )
+        }
+    }
+
+    public val Bag: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            drawRoundRect(
+                color = tint,
+                topLeft = Offset(size.width * 0.22f, size.height * 0.36f),
+                size = Size(size.width * 0.56f, size.height * 0.46f),
+                cornerRadius = CornerRadius(4f, 4f),
+                style = stroke,
+            )
+            val path = Path().apply {
+                moveTo(size.width * 0.34f, size.height * 0.36f)
+                quadraticTo(size.width * 0.34f, size.height * 0.18f, size.width * 0.5f, size.height * 0.18f)
+                quadraticTo(size.width * 0.66f, size.height * 0.18f, size.width * 0.66f, size.height * 0.36f)
+            }
+            drawPath(path, tint, style = stroke)
+        }
+    }
+
+    public val Play: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val c = Offset(size.width / 2, size.height / 2)
+            drawCircle(tint, radius = size.minDimension * 0.36f, center = c, style = stroke)
+            val path = Path().apply {
+                moveTo(size.width * 0.42f, size.height * 0.32f)
+                lineTo(size.width * 0.72f, size.height * 0.5f)
+                lineTo(size.width * 0.42f, size.height * 0.68f)
+                close()
+            }
+            drawPath(path, tint)
+        }
+    }
+
+    public val Adjust: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            drawLine(tint, Offset(size.width * 0.2f, size.height * 0.35f), Offset(size.width * 0.8f, size.height * 0.35f), stroke.width, StrokeCap.Round)
+            drawLine(tint, Offset(size.width * 0.2f, size.height * 0.65f), Offset(size.width * 0.8f, size.height * 0.65f), stroke.width, StrokeCap.Round)
+            drawCircle(tint, radius = size.minDimension * 0.08f, center = Offset(size.width * 0.38f, size.height * 0.35f))
+            drawCircle(tint, radius = size.minDimension * 0.08f, center = Offset(size.width * 0.62f, size.height * 0.65f))
+        }
+    }
+
+    public val Plus: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val c = Offset(size.width / 2, size.height / 2)
+            val arm = size.minDimension * 0.28f
+            drawLine(tint, Offset(c.x - arm, c.y), Offset(c.x + arm, c.y), stroke.width, StrokeCap.Round)
+            drawLine(tint, Offset(c.x, c.y - arm), Offset(c.x, c.y + arm), stroke.width, StrokeCap.Round)
+        }
+    }
+
+    public val More: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val y = size.height / 2
+            val r = size.minDimension * 0.07f
+            drawCircle(tint, r, Offset(size.width * 0.28f, y))
+            drawCircle(tint, r, Offset(size.width * 0.5f, y))
+            drawCircle(tint, r, Offset(size.width * 0.72f, y))
+        }
+    }
+
+    public val Back: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val path = Path().apply {
+                moveTo(size.width * 0.58f, size.height * 0.28f)
+                lineTo(size.width * 0.32f, size.height * 0.5f)
+                lineTo(size.width * 0.58f, size.height * 0.72f)
+            }
+            drawPath(path, tint, style = stroke)
+        }
+    }
+
+    public val Close: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            drawLine(
+                tint,
+                Offset(size.width * 0.28f, size.height * 0.28f),
+                Offset(size.width * 0.72f, size.height * 0.72f),
+                stroke.width,
+                StrokeCap.Round,
+            )
+            drawLine(
+                tint,
+                Offset(size.width * 0.72f, size.height * 0.28f),
+                Offset(size.width * 0.28f, size.height * 0.72f),
+                stroke.width,
+                StrokeCap.Round,
+            )
+        }
+    }
+
+    public val Timer: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            drawLine(
+                tint,
+                Offset(size.width * 0.38f, size.height * 0.18f),
+                Offset(size.width * 0.62f, size.height * 0.18f),
+                stroke.width,
+                StrokeCap.Round,
+            )
+            val c = Offset(size.width / 2, size.height * 0.56f)
+            drawCircle(tint, radius = size.minDimension * 0.28f, center = c, style = stroke)
+            drawLine(tint, c, Offset(c.x, c.y - size.minDimension * 0.14f), stroke.width, StrokeCap.Round)
+        }
+    }
+
+    public val Check: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val path = Path().apply {
+                moveTo(size.width * 0.22f, size.height * 0.52f)
+                lineTo(size.width * 0.42f, size.height * 0.7f)
+                lineTo(size.width * 0.78f, size.height * 0.3f)
+            }
+            drawPath(path, tint, style = stroke)
+        }
+    }
+
+    public val Download: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            drawRoundRect(
+                color = tint,
+                topLeft = Offset(size.width * 0.22f, size.height * 0.58f),
+                size = Size(size.width * 0.56f, size.height * 0.24f),
+                cornerRadius = CornerRadius(3f, 3f),
+                style = stroke,
+            )
+            drawLine(
+                tint,
+                Offset(size.width * 0.5f, size.height * 0.2f),
+                Offset(size.width * 0.5f, size.height * 0.58f),
+                stroke.width,
+                StrokeCap.Round,
+            )
+            val path = Path().apply {
+                moveTo(size.width * 0.34f, size.height * 0.44f)
+                lineTo(size.width * 0.5f, size.height * 0.6f)
+                lineTo(size.width * 0.66f, size.height * 0.44f)
+            }
+            drawPath(path, tint, style = stroke)
+        }
+    }
+
+    public val Scan: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val inset = size.minDimension * 0.2f
+            val arm = size.minDimension * 0.18f
+            // Top-left
+            drawLine(tint, Offset(inset, inset + arm), Offset(inset, inset), stroke.width, StrokeCap.Round)
+            drawLine(tint, Offset(inset, inset), Offset(inset + arm, inset), stroke.width, StrokeCap.Round)
+            // Top-right
+            drawLine(tint, Offset(size.width - inset - arm, inset), Offset(size.width - inset, inset), stroke.width, StrokeCap.Round)
+            drawLine(tint, Offset(size.width - inset, inset), Offset(size.width - inset, inset + arm), stroke.width, StrokeCap.Round)
+            // Bottom-left
+            drawLine(tint, Offset(inset, size.height - inset - arm), Offset(inset, size.height - inset), stroke.width, StrokeCap.Round)
+            drawLine(tint, Offset(inset, size.height - inset), Offset(inset + arm, size.height - inset), stroke.width, StrokeCap.Round)
+            // Bottom-right
+            drawLine(tint, Offset(size.width - inset - arm, size.height - inset), Offset(size.width - inset, size.height - inset), stroke.width, StrokeCap.Round)
+            drawLine(tint, Offset(size.width - inset, size.height - inset - arm), Offset(size.width - inset, size.height - inset), stroke.width, StrokeCap.Round)
+        }
+    }
+
+    public val Chevron: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val path = Path().apply {
+                moveTo(size.width * 0.38f, size.height * 0.28f)
+                lineTo(size.width * 0.62f, size.height * 0.5f)
+                lineTo(size.width * 0.38f, size.height * 0.72f)
+            }
+            drawPath(path, tint, style = stroke)
+        }
+    }
+
+    public val Camera: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            drawRoundRect(
+                color = tint,
+                topLeft = Offset(size.width * 0.16f, size.height * 0.34f),
+                size = Size(size.width * 0.68f, size.height * 0.46f),
+                cornerRadius = CornerRadius(4f, 4f),
+                style = stroke,
+            )
+            drawCircle(tint, radius = size.minDimension * 0.14f, center = Offset(size.width * 0.5f, size.height * 0.56f), style = stroke)
+            drawRoundRect(
+                color = tint,
+                topLeft = Offset(size.width * 0.36f, size.height * 0.22f),
+                size = Size(size.width * 0.28f, size.height * 0.14f),
+                cornerRadius = CornerRadius(2f, 2f),
+                style = stroke,
+            )
+        }
+    }
+
+    public val Photo: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            drawRoundRect(
+                color = tint,
+                topLeft = Offset(size.width * 0.18f, size.height * 0.22f),
+                size = Size(size.width * 0.64f, size.height * 0.56f),
+                cornerRadius = CornerRadius(4f, 4f),
+                style = stroke,
+            )
+            drawCircle(tint, radius = size.minDimension * 0.07f, center = Offset(size.width * 0.36f, size.height * 0.4f))
+            val path = Path().apply {
+                moveTo(size.width * 0.24f, size.height * 0.7f)
+                lineTo(size.width * 0.42f, size.height * 0.52f)
+                lineTo(size.width * 0.54f, size.height * 0.6f)
+                lineTo(size.width * 0.7f, size.height * 0.42f)
+                lineTo(size.width * 0.76f, size.height * 0.7f)
+                close()
+            }
+            drawPath(path, tint, style = stroke)
+        }
+    }
+}

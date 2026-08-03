@@ -1,0 +1,14 @@
+plugins {
+    id("basil.feature")
+}
+
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                implementation(project(":data:auth"))
+                implementation(project(":data:recipe"))
+            }
+        }
+    }
+}

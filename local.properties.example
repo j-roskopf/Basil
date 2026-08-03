@@ -1,0 +1,12 @@
+sdk.dir=/Users/joer/Library/Android/sdk
+# basil.firebase.apiKey=
+# basil.firebase.projectId=
+# basil.firebase.authDomain=
+# basil.firebase.storageBucket=
+# basil.firebase.functionsRegion=us-central1
+# basil.google.webClientId=
+# basil.google.webClientSecret=
+# basil.google.iosClientId=
+# iOS Google sign-in: CLIENT_ID from iosApp/iosApp/GoogleService-Info.plist (or set iosClientId above).
+# Required for desktop/web Google sign-in (authorization-code flow). Get both from the same
+# Google Cloud "Web application" OAuth client. Also add redirect URIs — see README.

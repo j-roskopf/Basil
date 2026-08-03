@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS recipe_outbox (
+    recipe_id TEXT NOT NULL PRIMARY KEY,
+    kind TEXT NOT NULL,
+    enqueued_at INTEGER NOT NULL
+);

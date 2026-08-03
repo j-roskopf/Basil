@@ -1,0 +1,26 @@
+# Basil run actions for Codex.
+version = 1
+name = "Basil"
+
+[setup]
+script = ""
+
+[[actions]]
+name = "Desktop"
+icon = "run"
+command = "./gradlew :composeApp:run"
+
+[[actions]]
+name = "Android"
+icon = "run"
+command = "ADB=\"${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb\"; [ -x \"$ADB\" ] || ADB=adb; ./gradlew :androidApp:installDebug && \"$ADB\" shell monkey -p com.joetr.basil -c android.intent.category.LAUNCHER 1"
+
+[[actions]]
+name = "iOS"
+icon = "run"
+command = "./scripts/run-ios-simulator.sh"
+
+[[actions]]
+name = "Web"
+icon = "debug"
+command = "./gradlew :composeApp:wasmJsBrowserDevelopmentRun"

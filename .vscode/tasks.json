@@ -1,0 +1,54 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Basil: Desktop",
+      "type": "shell",
+      "command": "./gradlew",
+      "args": [":composeApp:run"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Basil: Android",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "ADB=\"${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb\"; [ -x \"$ADB\" ] || ADB=adb; ./gradlew :androidApp:installDebug && \"$ADB\" shell monkey -p com.joetr.basil -c android.intent.category.LAUNCHER 1"
+      ],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Basil: iOS",
+      "type": "shell",
+      "command": "./scripts/run-ios-simulator.sh",
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Basil: Web",
+      "type": "shell",
+      "command": "./gradlew",
+      "args": [":composeApp:wasmJsBrowserDevelopmentRun"],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
