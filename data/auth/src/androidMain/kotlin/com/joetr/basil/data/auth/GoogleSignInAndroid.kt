@@ -12,6 +12,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.joetr.basil.network.BasilFirebase
 import com.joetr.basil.platform.AndroidContextHolder
 import com.joetr.basil.platform.BasilConfig
+import com.joetr.basil.platform.isDebugBuild
 
 public actual suspend fun googleSignIn(firebase: BasilFirebase): GoogleSignInResult {
     val serverClientId = BasilConfig.GOOGLE_WEB_CLIENT_ID
@@ -34,26 +35,18 @@ public actual suspend fun googleSignIn(firebase: BasilFirebase): GoogleSignInRes
     } catch (e: NoCredentialException) {
         throw authException(
             "No Google account available. Add a Google account on this device, and make sure " +
-                "the app's debug SHA-1 is added in Firebase Project Settings → Your apps.",
+                "this app's SHA-1 fingerprint is added in Firebase Project Settings → Your apps.",
         )
     } catch (e: GetCredentialCancellationException) {
         val detail = e.message.orEmpty()
-        if (detail.contains("reauth", ignoreCase = true) || detail.contains("[16]")) {
-            throw authException(
-                "Google sign-in failed (account reauth). Add this debug SHA-1 in Firebase " +
-                    "Project Settings for com.joetr.basil, then re-download google-services.json:\n" +
-                    "6C:1A:C2:BE:F4:C8:58:B6:0C:B6:19:93:BD:99:1B:21:36:8F:40:35",
-            )
+        if (isGoogleSignInCertificateMismatch(detail)) {
+            throwGoogleSignInCertificateMismatch(context)
         }
         throw authException("Google sign-in was cancelled")
     } catch (e: GetCredentialException) {
         val detail = e.message.orEmpty()
-        if (detail.contains("reauth", ignoreCase = true) || detail.contains("[16]")) {
-            throw authException(
-                "Google sign-in failed (account reauth). Add this debug SHA-1 in Firebase " +
-                    "Project Settings for com.joetr.basil, then re-download google-services.json:\n" +
-                    "6C:1A:C2:BE:F4:C8:58:B6:0C:B6:19:93:BD:99:1B:21:36:8F:40:35",
-            )
+        if (isGoogleSignInCertificateMismatch(detail)) {
+            throwGoogleSignInCertificateMismatch(context)
         }
         throw authException(detail.ifBlank { "Google sign-in failed" })
     }
@@ -67,4 +60,12 @@ public actual suspend fun googleSignIn(firebase: BasilFirebase): GoogleSignInRes
         throw authException("Unexpected credential type returned from Credential Manager")
     }
     return signInToFirebaseWithGoogleIdToken(firebase, idToken)
+}
+
+private fun throwGoogleSignInCertificateMismatch(context: Context): Nothing {
+    val message = googleSignInCertificateMismatchMessage(
+        sha1 = context.signingCertificateSha1(),
+        isDebugBuild = isDebugBuild(),
+    )
+    throw authException("$GOOGLE_ANDROID_SIGN_IN_CERT_MISMATCH:$message")
 }

@@ -101,6 +101,7 @@ Optional (recommended — avoids relying on defaults in `generateBasilConfig`):
 | `FIREBASE_STORAGE_BUCKET` | e.g. `basil-dffbd.firebasestorage.app` |
 | `FIREBASE_FUNCTIONS_REGION` | Default `us-central1` |
 | `BASIL_GOOGLE_WEB_CLIENT_SECRET` | Desktop/wasm OAuth code exchange (see security note below) |
+| `GOOGLE_SERVICES_JSON_B64` | Base64-encoded `androidApp/google-services.json` from Firebase (recommended for release builds) |
 
 ### Required for release tags (`v*`)
 
@@ -131,6 +132,10 @@ Before the first deploy succeeds end-to-end:
    - Android (`com.joetr.basil`) → `androidApp/google-services.json`
    - iOS (`com.joetr.basil`) → `iosApp/iosApp/GoogleService-Info.plist`
    - Web → API key and auth domain for CI secrets
+4. **Android Google Sign-In fingerprints** (required for release APK/AAB):
+   - Debug: `./gradlew :androidApp:signingReport` → add the **debug** SHA-1 under the Android app in Firebase.
+   - Release: add the **release** keystore SHA-1 as well (CI prints it in the `Print release signing SHA-1` step on tagged releases).
+   - After adding fingerprints, download a fresh `google-services.json` and set `GOOGLE_SERVICES_JSON_B64` for release CI (or update your local copy).
 
 ### Google OAuth redirect URIs
 

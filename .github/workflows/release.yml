@@ -126,11 +126,15 @@ jobs:
 
       - name: Write google-services.json
         env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
           FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
         run: |
-          cat > androidApp/google-services.json <<EOF
+          if [ -n "${GOOGLE_SERVICES_JSON_BASE64}" ]; then
+            echo "${GOOGLE_SERVICES_JSON_BASE64}" | base64 --decode > androidApp/google-services.json
+          else
+            cat > androidApp/google-services.json <<EOF
           {
             "project_info": {
               "project_number": "0",
@@ -149,6 +153,7 @@ jobs:
             "configuration_version": "1"
           }
           EOF
+          fi
 
       - name: Configure Android signing
         if: env.ANDROID_KEYSTORE_BASE64 != ''
@@ -161,6 +166,17 @@ jobs:
             echo "RELEASE_KEY_ALIAS=${ANDROID_KEY_ALIAS}"
             echo "RELEASE_KEY_PASSWORD=${ANDROID_KEY_PASSWORD}"
           } >> "${GITHUB_ENV}"
+
+      - name: Print release signing SHA-1
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        shell: bash
+        run: |
+          echo "Add this release SHA-1 in Firebase → Project settings → Your apps → Android (com.joetr.basil):"
+          keytool -list -v \
+            -keystore release.keystore \
+            -alias "${ANDROID_KEY_ALIAS}" \
+            -storepass "${ANDROID_KEYSTORE_PASSWORD}" \
+            | awk '/SHA1:|SHA-1:/{print}'
 
       - name: Build Android APK and bundle
         env:

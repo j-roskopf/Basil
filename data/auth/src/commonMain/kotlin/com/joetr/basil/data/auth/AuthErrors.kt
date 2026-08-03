@@ -102,9 +102,12 @@ internal fun authErrorMessage(raw: String): String {
         message.contains("FEDERATED_USER_ID_ALREADY_LINKED", ignoreCase = true) ||
             message.contains("CREDENTIAL_ALREADY_IN_USE", ignoreCase = true) ->
             "That Google account is already linked to another user."
+        message.startsWith("GOOGLE_ANDROID_SIGN_IN_CERT_MISMATCH:") ->
+            message.removePrefix("GOOGLE_ANDROID_SIGN_IN_CERT_MISMATCH:").trim()
         message.contains("reauth", ignoreCase = true) || message.contains("[16]") ->
-            "Google sign-in failed (account reauth). Add the app debug SHA-1 in Firebase " +
-                "Project Settings, re-download google-services.json, and rebuild."
+            "Google sign-in failed (certificate mismatch). Add the app's SHA-1 fingerprint " +
+                "(debug and release) in Firebase Project Settings → Your apps → com.joetr.basil, " +
+                "re-download google-services.json, and rebuild."
         message.contains("invalid_client", ignoreCase = true) ||
             message.contains("client_secret is missing", ignoreCase = true) ->
             "Google sign-in requires basil.google.webClientSecret in local.properties " +

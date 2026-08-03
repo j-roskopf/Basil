@@ -46,6 +46,8 @@ In [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services
 
 Desktop and web use the authorization-code flow and require `basil.google.webClientSecret` in `local.properties` (or `BASIL_GOOGLE_WEB_CLIENT_SECRET` in the environment).
 
+**Android Google Sign-In** requires your app's SHA-1 certificate fingerprint(s) in Firebase → Project settings → Your apps → Android (`com.joetr.basil`). Add both **debug** and **release** fingerprints if you test both build types (`./gradlew :androidApp:signingReport` for debug; use `keytool -list -v -keystore your-release.jks` for release). Re-download `google-services.json` after adding fingerprints.
+
 **iOS Google sign-in** uses the Firebase **iOS** OAuth client (not the Web client). Add an iOS app in Firebase with bundle ID `com.joetr.basil`, download `GoogleService-Info.plist` into `iosApp/iosApp/`, or set `basil.google.iosClientId` in `local.properties` to the plist's `CLIENT_ID` value. Rebuild so the reversed client ID URL scheme is registered in `Info.plist`.
 
 ## Run
