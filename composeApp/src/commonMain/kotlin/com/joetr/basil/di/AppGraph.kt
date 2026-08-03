@@ -11,6 +11,8 @@ import com.joetr.basil.data.recipe.sync.ImageUploadWorker
 import com.joetr.basil.data.recipe.sync.RecipeSyncService
 import com.joetr.basil.database.BasilDataLayer
 import com.joetr.basil.domain.usecase.DeleteRecipeUseCase
+import com.joetr.basil.domain.usecase.ExportRecipesUseCase
+import com.joetr.basil.domain.usecase.ImportBasilRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportMelaRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportRecipeFromUrlUseCase
 import com.joetr.basil.domain.usecase.MergeLocalIntoAccountUseCase
@@ -101,6 +103,8 @@ public class AppGraph(
     public val importViewModel: ImportViewModel = ImportViewModel(
         ImportRecipeFromUrlUseCase(importRepository),
         ImportMelaRecipesUseCase(recipeRepository, imageRepository, syncRepository, ObserveSessionUseCase(sessionRepository)),
+        ImportBasilRecipesUseCase(recipeRepository, imageRepository, syncRepository, ObserveSessionUseCase(sessionRepository)),
+        ExportRecipesUseCase(recipeRepository, imageRepository, ObserveSessionUseCase(sessionRepository)),
         ObserveImportHistoryUseCase(importRepository),
     )
     public val editorViewModel: EditorViewModel = EditorViewModel(

@@ -280,40 +280,63 @@ private fun UpdateStatusRow(
     onCheck: () -> Unit,
     onInstall: () -> Unit,
 ) {
-    val updateText = when (updateState) {
-        AppUpdateState.Idle -> "Check for updates"
-        AppUpdateState.Checking -> "Checking for updates..."
-        AppUpdateState.Current -> "Basil is up to date"
-        is AppUpdateState.Available -> "Update to v${updateState.update.versionName}"
-        is AppUpdateState.Installing -> updateState.let {
-            val pct = it.progress?.let { progress -> " ${(progress * 100).toInt()}%" } ?: ""
-            "${it.message}$pct"
+    val rowModifier = Modifier.padding(top = BasilSpacing.md)
+    when (updateState) {
+        AppUpdateState.Idle -> {
+            SheetPillButton(
+                text = "Check for updates",
+                colors = colors,
+                onClick = onCheck,
+                modifier = rowModifier,
+            )
         }
-        is AppUpdateState.Failed -> updateState.message
+        AppUpdateState.Checking -> {
+            Text(
+                "Checking for updates...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.mutedOnSheet,
+                modifier = rowModifier,
+            )
+        }
+        AppUpdateState.Current -> {
+            Text(
+                "Basil is up to date",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.mutedOnSheet,
+                modifier = rowModifier,
+            )
+        }
+        is AppUpdateState.Available -> {
+            SheetPillButton(
+                text = "Update to v${updateState.update.versionName}",
+                colors = colors,
+                onClick = onInstall,
+                modifier = rowModifier,
+            )
+        }
+        is AppUpdateState.Installing -> {
+            val pct = updateState.progress?.let { progress -> " ${(progress * 100).toInt()}%" } ?: ""
+            Text(
+                "${updateState.message}$pct",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.mutedOnSheet,
+                modifier = rowModifier,
+            )
+        }
+        is AppUpdateState.Failed -> {
+            Column(modifier = rowModifier) {
+                Text(
+                    updateState.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                SheetPillButton(
+                    text = "Try again",
+                    colors = colors,
+                    onClick = onCheck,
+                    modifier = Modifier.padding(top = BasilSpacing.sm),
+                )
+            }
+        }
     }
-    val isActionable = updateState is AppUpdateState.Idle ||
-        updateState is AppUpdateState.Available ||
-        updateState is AppUpdateState.Failed
-    val textColor = when (updateState) {
-        is AppUpdateState.Available -> MaterialTheme.colorScheme.primary
-        is AppUpdateState.Failed -> MaterialTheme.colorScheme.error
-        else -> colors.mutedOnSheet
-    }
-
-    Text(
-        updateText,
-        style = MaterialTheme.typography.bodyMedium,
-        color = textColor,
-        modifier = Modifier
-            .padding(top = BasilSpacing.sm)
-            .then(
-                if (isActionable) {
-                    Modifier.clickable {
-                        if (updateState is AppUpdateState.Available) onInstall() else onCheck()
-                    }
-                } else {
-                    Modifier
-                },
-            ),
-    )
 }

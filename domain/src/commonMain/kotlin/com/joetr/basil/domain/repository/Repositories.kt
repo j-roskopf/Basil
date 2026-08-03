@@ -15,6 +15,7 @@ public interface RecipeRepository {
     public suspend fun delete(id: String)
     public suspend fun toggleFavourite(id: String)
     public suspend fun countByOwner(ownerId: String): Int
+    public suspend fun getAllByOwner(ownerId: String): List<Recipe>
     public suspend fun mergeLocalIntoAccount(localOwnerId: String, accountOwnerId: String): Int
 }
 

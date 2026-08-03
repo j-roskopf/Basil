@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Basil
+Comment=Recipe library and cookbook
+Exec=Basil
+Icon=com.joetr.basil
+Terminal=false
+Categories=Office;Utility;
+StartupWMClass=Basil

@@ -34,9 +34,12 @@ kotlin {
 tasks.register("generateBasilConfig") {
     val configOutput = layout.buildDirectory.dir("generated/basilConfig/kotlin")
     val localPropertiesFile = rootProject.layout.projectDirectory.file("local.properties")
+    val gradlePropertiesFile = rootProject.layout.projectDirectory.file("gradle.properties")
+    val versionName = rootProject.providers.gradleProperty("basil.versionName").orElse("0.1.0")
 
-    // Invalidate when local.properties changes so newly added keys are picked up.
+    // Invalidate when local.properties or gradle.properties changes.
     inputs.files(localPropertiesFile).optional().withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(gradlePropertiesFile).withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(configOutput)
     doLast {
         fun readGoogleServiceInfoIosClientId(): String? {
@@ -71,7 +74,7 @@ tasks.register("generateBasilConfig") {
             "FIREBASE_FUNCTIONS_REGION",
             "basil.firebase.functionsRegion",
         ).ifBlank { "us-central1" }
-        val versionName = rootProject.providers.gradleProperty("basil.versionName").orElse("0.1.0").get()
+        val versionNameValue = versionName.get()
         val googleWebClientId = resolve(
             "basil.google.webClientId",
             "BASIL_GOOGLE_WEB_CLIENT_ID",
@@ -116,7 +119,7 @@ tasks.register("generateBasilConfig") {
                 }
 
                 object BasilBuildInfo {
-                    const val versionName: String = "${esc(versionName)}"
+                    const val versionName: String = "${esc(versionNameValue)}"
                     const val githubOwner: String = "j-roskopf"
                     const val githubRepo: String = "Basil"
                 }

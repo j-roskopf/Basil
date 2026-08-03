@@ -11,6 +11,7 @@ kotlin {
             dependencies {
                 implementation(project(":data:recipe"))
                 implementation(project(":core:network"))
+                implementation(project(":core:platform"))
             }
         }
         androidMain {

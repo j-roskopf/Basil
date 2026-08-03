@@ -162,7 +162,7 @@ jobs:
             echo "RELEASE_KEY_PASSWORD=${ANDROID_KEY_PASSWORD}"
           } >> "${GITHUB_ENV}"
 
-      - name: Build Android bundle
+      - name: Build Android APK and bundle
         env:
           FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -172,7 +172,7 @@ jobs:
           BASIL_GOOGLE_WEB_CLIENT_ID: ${{ secrets.BASIL_GOOGLE_WEB_CLIENT_ID }}
           BASIL_GOOGLE_WEB_CLIENT_SECRET: ${{ secrets.BASIL_GOOGLE_WEB_CLIENT_SECRET }}
         run: >
-          ./gradlew :androidApp:bundleRelease
+          ./gradlew :androidApp:assembleRelease :androidApp:bundleRelease
           -Pbasil.versionName=${{ needs.version.outputs.version }}
           -Pbasil.versionCode=${{ needs.version.outputs.version_code }}
           --no-daemon
@@ -182,11 +182,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-artifacts
+          apk="$(find androidApp/build/outputs/apk/release -name '*.apk' -print -quit)"
           aab="$(find androidApp/build/outputs/bundle/release -name '*.aab' -print -quit)"
-          if [[ -z "${aab}" ]]; then
-            echo "::error::Could not find Android AAB release artifact"
+          if [[ -z "${apk}" || -z "${aab}" ]]; then
+            echo "::error::Could not find Android APK and AAB release artifacts"
             exit 1
           fi
+          cp "${apk}" "release-artifacts/Basil-${VERSION}.apk"
           cp "${aab}" "release-artifacts/Basil-${VERSION}.aab"
         env:
           VERSION: ${{ needs.version.outputs.version }}
@@ -203,13 +205,20 @@ jobs:
     needs:
       - version
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.version.outputs.tag_name }}
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot flatpak flatpak-builder
+          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install --noninteractive flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
 
       - uses: actions/setup-java@v4
         with:
@@ -218,7 +227,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build Linux package
+      - name: Build Linux packages
         env:
           FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -228,18 +237,44 @@ jobs:
           BASIL_GOOGLE_WEB_CLIENT_ID: ${{ secrets.BASIL_GOOGLE_WEB_CLIENT_ID }}
           BASIL_GOOGLE_WEB_CLIENT_SECRET: ${{ secrets.BASIL_GOOGLE_WEB_CLIENT_SECRET }}
         run: >
-          ./gradlew :composeApp:packageDeb
+          ./gradlew :composeApp:packageReleaseDeb :composeApp:createReleaseDistributable
           -Pbasil.versionName=${{ needs.version.outputs.version }}
           --no-daemon
+
+      - name: Build Linux Flatpak bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          (
+            cd composeApp/flatpak
+            flatpak-builder \
+              --force-clean \
+              --repo="${GITHUB_WORKSPACE}/flatpak-repo" \
+              "${GITHUB_WORKSPACE}/flatpak-build" \
+              com.joetr.basil.yml
+          )
+          flatpak build-bundle \
+            flatpak-repo \
+            "release-artifacts/Basil-${VERSION}.flatpak" \
+            com.joetr.basil \
+            --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
 
       - name: Collect Linux release artifacts
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-artifacts
-          deb="$(find composeApp/build/compose/binaries/main/deb -name '*.deb' -print -quit)"
+          deb="$(find composeApp/build/compose/binaries -path '*/deb/*.deb' -print -quit)"
           if [[ -z "${deb}" ]]; then
             echo "::error::Could not find Linux DEB release artifact"
+            exit 1
+          fi
+          flatpak_bundle="release-artifacts/Basil-${VERSION}.flatpak"
+          if [[ ! -f "${flatpak_bundle}" ]]; then
+            echo "::error::Could not find Linux Flatpak release artifact"
             exit 1
           fi
           cp "${deb}" "release-artifacts/Basil-${VERSION}.deb"
@@ -415,6 +450,224 @@ jobs:
           if-no-files-found: error
           path: release-artifacts/*
 
+  ios:
+    name: iOS release
+    needs:
+      - version
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag_name }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Write GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 || secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          BASIL_GOOGLE_IOS_CLIENT_ID: ${{ secrets.BASIL_GOOGLE_IOS_CLIENT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          plist_path="iosApp/iosApp/GoogleService-Info.plist"
+          if [[ -n "${GOOGLE_SERVICE_INFO_PLIST_BASE64}" ]]; then
+            echo "${GOOGLE_SERVICE_INFO_PLIST_BASE64}" | base64 --decode > "${plist_path}"
+            exit 0
+          fi
+          if [[ -z "${BASIL_GOOGLE_IOS_CLIENT_ID}" ]]; then
+            echo "::error::Set GOOGLE_SERVICE_INFO_PLIST_BASE64 or BASIL_GOOGLE_IOS_CLIENT_ID for iOS release builds"
+            exit 1
+          fi
+          reversed_client_id="com.googleusercontent.apps.${BASIL_GOOGLE_IOS_CLIENT_ID%%.apps.googleusercontent.com}"
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+            '<plist version="1.0">' \
+            '<dict>' \
+            '  <key>CLIENT_ID</key>' \
+            "  <string>${BASIL_GOOGLE_IOS_CLIENT_ID}</string>" \
+            '  <key>REVERSED_CLIENT_ID</key>' \
+            "  <string>${reversed_client_id}</string>" \
+            '  <key>API_KEY</key>' \
+            "  <string>${FIREBASE_WEB_API_KEY}</string>" \
+            '  <key>GCM_SENDER_ID</key>' \
+            '  <string>0</string>' \
+            '  <key>PLIST_VERSION</key>' \
+            '  <string>1</string>' \
+            '  <key>BUNDLE_ID</key>' \
+            '  <string>com.joetr.basil</string>' \
+            '  <key>PROJECT_ID</key>' \
+            "  <string>${FIREBASE_PROJECT_ID}</string>" \
+            '  <key>STORAGE_BUCKET</key>' \
+            "  <string>${FIREBASE_STORAGE_BUCKET}</string>" \
+            '  <key>IS_ADS_ENABLED</key>' \
+            '  <false/>' \
+            '  <key>IS_ANALYTICS_ENABLED</key>' \
+            '  <false/>' \
+            '  <key>IS_APPINVITE_ENABLED</key>' \
+            '  <true/>' \
+            '  <key>IS_GCM_ENABLED</key>' \
+            '  <true/>' \
+            '  <key>IS_SIGNIN_ENABLED</key>' \
+            '  <true/>' \
+            '  <key>GOOGLE_APP_ID</key>' \
+            '  <string>1:0:ios:0</string>' \
+            '</dict>' \
+            '</plist>' > "${plist_path}"
+
+      - name: Update iOS version info
+        shell: bash
+        run: |
+          plutil -replace CFBundleShortVersionString -string "${VERSION}" iosApp/iosApp/Info.plist
+          plutil -replace CFBundleVersion -string "${VERSION_CODE}" iosApp/iosApp/Info.plist
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          VERSION_CODE: ${{ needs.version.outputs.version_code }}
+
+      - name: Set up iOS code signing and profiles
+        shell: bash
+        run: |
+          if [[ -n "${IOS_PROVISIONING_PROFILE_BASE64}" && -n "${IOS_CERTIFICATE_BASE64}" ]]; then
+            echo "Setting up iOS code signing..."
+
+            ios_cert_path="${RUNNER_TEMP}/ios-developer.p12"
+            echo "${IOS_CERTIFICATE_BASE64}" | base64 --decode > "${ios_cert_path}"
+
+            keychain_path="${RUNNER_TEMP}/ios-signing.keychain-db"
+            security create-keychain -p "${MACOS_KEYCHAIN_PASSWORD}" "${keychain_path}"
+            security set-keychain-settings -lut 21600 "${keychain_path}"
+            security unlock-keychain -p "${MACOS_KEYCHAIN_PASSWORD}" "${keychain_path}"
+            security import "${ios_cert_path}" -P "${IOS_CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "${keychain_path}"
+            security list-keychains -d user -s "${keychain_path}" login.keychain
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${MACOS_KEYCHAIN_PASSWORD}" "${keychain_path}"
+
+            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+            profile_path="${HOME}/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision"
+            echo "${IOS_PROVISIONING_PROFILE_BASE64}" | base64 --decode > "${profile_path}"
+
+            security cms -D -i "${profile_path}" > "${RUNNER_TEMP}/profile.plist"
+            UUID=$(plutil -extract UUID raw "${RUNNER_TEMP}/profile.plist")
+            TEAM_ID=$(plutil -extract TeamIdentifier.0 raw "${RUNNER_TEMP}/profile.plist")
+            APPLICATION_ID=$(plutil -extract Entitlements.application-identifier raw "${RUNNER_TEMP}/profile.plist")
+            BUNDLE_ID="${APPLICATION_ID#*.}"
+
+            mv "${profile_path}" "${HOME}/Library/MobileDevice/Provisioning Profiles/${UUID}.mobileprovision"
+
+            printf '%s\n' \
+              '<?xml version="1.0" encoding="UTF-8"?>' \
+              '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+              '<plist version="1.0">' \
+              '<dict>' \
+              '  <key>method</key>' \
+              '  <string>development</string>' \
+              '  <key>signingStyle</key>' \
+              '  <string>manual</string>' \
+              "  <key>teamID</key>" \
+              "  <string>${TEAM_ID}</string>" \
+              '  <key>provisioningProfiles</key>' \
+              '  <dict>' \
+              "    <key>${BUNDLE_ID}</key>" \
+              "    <string>${UUID}</string>" \
+              '  </dict>' \
+              '</dict>' \
+              '</plist>' > "${RUNNER_TEMP}/ExportOptions.plist"
+
+            {
+              echo "SIGN_IOS=true"
+              echo "IOS_TEAM_ID=${TEAM_ID}"
+              echo "IOS_PROVISIONING_PROFILE_UUID=${UUID}"
+            } >> "${GITHUB_ENV}"
+          else
+            echo "iOS signing secrets not fully provided. Building unsigned IPA."
+            echo "SIGN_IOS=false" >> "${GITHUB_ENV}"
+          fi
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+
+      - name: Build and package iOS app
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_FUNCTIONS_REGION: ${{ secrets.FIREBASE_FUNCTIONS_REGION }}
+          BASIL_GOOGLE_WEB_CLIENT_ID: ${{ secrets.BASIL_GOOGLE_WEB_CLIENT_ID }}
+          BASIL_GOOGLE_WEB_CLIENT_SECRET: ${{ secrets.BASIL_GOOGLE_WEB_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          if [[ "${SIGN_IOS}" == "true" ]]; then
+            echo "Building signed iOS app..."
+            xcodebuild \
+              -project iosApp/iosApp.xcodeproj \
+              -scheme iosApp \
+              -configuration Release \
+              -sdk iphoneos \
+              -derivedDataPath "${RUNNER_TEMP}/ios-release-derived" \
+              -archivePath "${RUNNER_TEMP}/iosApp.xcarchive" \
+              DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
+              PROVISIONING_PROFILE_SPECIFIER="${IOS_PROVISIONING_PROFILE_UUID}" \
+              CODE_SIGN_STYLE="Manual" \
+              archive
+
+            xcodebuild -exportArchive \
+              -archivePath "${RUNNER_TEMP}/iosApp.xcarchive" \
+              -exportPath "${RUNNER_TEMP}/exported" \
+              -exportOptionsPlist "${RUNNER_TEMP}/ExportOptions.plist"
+
+            ipa_path="$(find "${RUNNER_TEMP}/exported" -name '*.ipa' -print -quit)"
+            if [[ -z "${ipa_path}" ]]; then
+              echo "::error::Could not find exported IPA file"
+              exit 1
+            fi
+            mkdir -p release-artifacts
+            cp "${ipa_path}" "release-artifacts/Basil-${VERSION}.ipa"
+          else
+            echo "Building unsigned iOS app..."
+            xcodebuild \
+              -project iosApp/iosApp.xcodeproj \
+              -scheme iosApp \
+              -configuration Release \
+              -sdk iphoneos \
+              -derivedDataPath "${RUNNER_TEMP}/ios-release-derived" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              clean build
+
+            app_path="$(find "${RUNNER_TEMP}/ios-release-derived/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' -print -quit)"
+            if [[ -z "${app_path}" ]]; then
+              echo "::error::Could not find built iOS app"
+              exit 1
+            fi
+            mkdir -p Payload release-artifacts
+            cp -R "${app_path}" Payload/
+            zip -r "release-artifacts/Basil-${VERSION}.ipa" Payload
+            rm -rf Payload
+          fi
+
+      - name: Upload iOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-release
+          if-no-files-found: error
+          path: release-artifacts/*
+
   firebase:
     name: Deploy Firebase backend
     needs:
@@ -534,10 +787,35 @@ jobs:
           name: Basil ${{ needs.version.outputs.version }}
           generate_release_notes: true
           files: |
+            release-artifacts/**/*.apk
             release-artifacts/**/*.aab
             release-artifacts/**/*.deb
+            release-artifacts/**/*.flatpak
             release-artifacts/**/*.msi
             release-artifacts/**/*.dmg
+
+  attach-ios-release:
+    name: Attach iOS to release
+    needs:
+      - version
+      - ios
+      - github-release
+    if: always() && needs.ios.result == 'success' && needs.github-release.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Download iOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-release
+          path: release-artifacts
+
+      - name: Upload iOS IPA to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag_name }}
+          files: release-artifacts/**/*.ipa
 
   web-pages-deploy:
     name: Deploy web to GitHub Pages

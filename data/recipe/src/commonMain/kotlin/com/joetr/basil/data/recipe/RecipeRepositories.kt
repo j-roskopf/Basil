@@ -130,6 +130,13 @@ public class DefaultRecipeRepository(
             database.recipesQueries.countRecipesByOwner(ownerId).awaitAsOne().toInt()
         }
 
+    override suspend fun getAllByOwner(ownerId: String): List<Recipe> =
+        withContext(Dispatchers.Default) {
+            database.recipesQueries.selectRecipesByOwner(ownerId)
+                .awaitAsList()
+                .map { it.toDomain(json) }
+        }
+
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun mergeLocalIntoAccount(localOwnerId: String, accountOwnerId: String): Int {
         val localRecipes = withContext(Dispatchers.Default) {

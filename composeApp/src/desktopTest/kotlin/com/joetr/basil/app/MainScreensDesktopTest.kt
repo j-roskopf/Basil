@@ -19,6 +19,8 @@ import com.joetr.basil.domain.repository.RecipeRepository
 import com.joetr.basil.domain.repository.SessionRepository
 import com.joetr.basil.domain.repository.SyncRepository
 import com.joetr.basil.domain.repository.ImageRepository
+import com.joetr.basil.domain.usecase.ExportRecipesUseCase
+import com.joetr.basil.domain.usecase.ImportBasilRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportMelaRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportRecipeFromUrlUseCase
 import com.joetr.basil.domain.usecase.MergeLocalIntoAccountUseCase
@@ -67,6 +69,7 @@ private val fakeRecipeRepository = object : RecipeRepository {
     override suspend fun delete(id: String) = Unit
     override suspend fun toggleFavourite(id: String) = Unit
     override suspend fun countByOwner(ownerId: String) = 0
+    override suspend fun getAllByOwner(ownerId: String) = emptyList<Recipe>()
     override suspend fun mergeLocalIntoAccount(localOwnerId: String, accountOwnerId: String) = 0
 }
 
@@ -119,6 +122,17 @@ class MainScreensDesktopTest {
                     fakeRecipeRepository,
                     fakeImageRepository,
                     fakeSyncRepository,
+                    ObserveSessionUseCase(fakeSessionRepository),
+                ),
+                ImportBasilRecipesUseCase(
+                    fakeRecipeRepository,
+                    fakeImageRepository,
+                    fakeSyncRepository,
+                    ObserveSessionUseCase(fakeSessionRepository),
+                ),
+                ExportRecipesUseCase(
+                    fakeRecipeRepository,
+                    fakeImageRepository,
                     ObserveSessionUseCase(fakeSessionRepository),
                 ),
                 ObserveImportHistoryUseCase(fakeImportRepository),

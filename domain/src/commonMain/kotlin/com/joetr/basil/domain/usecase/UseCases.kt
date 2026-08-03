@@ -1,5 +1,6 @@
 package com.joetr.basil.domain.usecase
 
+import com.joetr.basil.domain.export.BasilRecipeCodec
 import com.joetr.basil.domain.model.ExtractedRecipe
 import com.joetr.basil.domain.model.Recipe
 import com.joetr.basil.domain.model.RecipeQuery
@@ -132,6 +133,100 @@ public class ImportMelaRecipesUseCase(
     syncRepository.syncNow()
     return Result(parsed = items.size, saved = saved, failed = failed)
   }
+}
+
+public class ExportRecipesUseCase(
+    private val recipeRepository: RecipeRepository,
+    private val imageRepository: ImageRepository,
+    private val observeSession: ObserveSessionUseCase,
+) {
+    public data class Result(
+        val bytes: ByteArray,
+        val recipeCount: Int,
+    )
+
+    public suspend operator fun invoke(): Result {
+        val ownerId = when (val session = observeSession().first()) {
+            is SessionState.Authenticated -> session.userId
+            is SessionState.Anonymous -> session.userId
+            is SessionState.LocalPending -> session.deviceOwnerId
+        }
+        val recipes = recipeRepository.getAllByOwner(ownerId)
+        if (recipes.isEmpty()) error("No recipes to export.")
+        val imageBytesByLocalId = buildMap {
+            recipes.forEach { recipe ->
+                val localImageId = recipe.localImageId ?: return@forEach
+                imageRepository.readLocalImage(localImageId)?.let { put(localImageId, it) }
+            }
+        }
+        val exported = BasilRecipeCodec.export(
+            recipes = recipes,
+            imageBytesByLocalId = imageBytesByLocalId,
+            exportedAt = currentTimeMillis(),
+        )
+        return Result(bytes = exported.bytes, recipeCount = exported.recipeCount)
+    }
+}
+
+public class ImportBasilRecipesUseCase(
+    private val recipeRepository: RecipeRepository,
+    private val imageRepository: ImageRepository,
+    private val syncRepository: SyncRepository,
+    private val observeSession: ObserveSessionUseCase,
+) {
+    public data class Result(
+        val parsed: Int,
+        val saved: Int,
+        val failed: Int,
+    )
+
+    @OptIn(ExperimentalUuidApi::class)
+    public suspend operator fun invoke(backupBytes: ByteArray): Result {
+        val items = BasilRecipeCodec.parse(backupBytes)
+        val ownerId = when (val session = observeSession().first()) {
+            is SessionState.Authenticated -> session.userId
+            is SessionState.Anonymous -> session.userId
+            is SessionState.LocalPending -> session.deviceOwnerId
+        }
+        val now = currentTimeMillis()
+        var saved = 0
+        var failed = 0
+
+        items.forEach { item ->
+            val outcome = runCatching {
+                val recipeId = Uuid.random().toString()
+                val entry = item.entry
+                val localImageId = item.imageBytes?.let { bytes ->
+                    runCatching { imageRepository.saveLocalImage(recipeId, bytes) }.getOrNull()
+                }
+                recipeRepository.save(
+                    Recipe(
+                        id = recipeId,
+                        ownerId = ownerId,
+                        title = entry.title.trim().takeUnless { it.isBlank() } ?: "Untitled recipe",
+                        description = entry.description,
+                        imageUrl = entry.imageUrl,
+                        localImageId = localImageId,
+                        sourceUrl = entry.sourceUrl,
+                        servings = entry.servings,
+                        prepMinutes = entry.prepMinutes,
+                        cookMinutes = entry.cookMinutes,
+                        ingredients = entry.ingredients,
+                        steps = entry.steps,
+                        tags = entry.tags,
+                        notes = entry.notes,
+                        isFavourite = entry.isFavourite,
+                        createdAt = entry.createdAt ?: now,
+                        updatedAt = 0L,
+                    ),
+                    syncImmediately = false,
+                )
+            }
+            if (outcome.isSuccess) saved++ else failed++
+        }
+        syncRepository.syncNow()
+        return Result(parsed = items.size, saved = saved, failed = failed)
+    }
 }
 
 public class SyncNowUseCase(

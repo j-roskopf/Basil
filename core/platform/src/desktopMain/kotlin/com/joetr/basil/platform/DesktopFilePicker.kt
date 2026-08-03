@@ -40,6 +40,41 @@ public fun pickDesktopOpenFile(
     return runCatching { File(directory, selected).readBytes() }.getOrNull()
 }
 
+/**
+ * Opens the platform-native save dialog and writes [bytes] to the selected path.
+ */
+public fun pickDesktopSaveFile(
+    title: String,
+    defaultFileName: String,
+    bytes: ByteArray,
+    extensions: Set<String>,
+): Boolean {
+    applyMacOsAppearanceBeforeNativeDialog()
+    val dialog = FileDialog(desktopFileDialogOwner, title, FileDialog.SAVE)
+    dialog.file = defaultFileName
+    if (extensions.isNotEmpty()) {
+        val normalized = extensions.map { it.lowercase().removePrefix(".") }.toSet()
+        dialog.setFilenameFilter { _, name ->
+            val ext = name.substringAfterLast('.', "").lowercase()
+            normalized.contains(ext)
+        }
+    }
+    dialog.isVisible = true
+    val selected = dialog.file
+    val directory = dialog.directory
+    if (selected == null || directory == null) return false
+    val target = if (extensions.isNotEmpty() && !selected.contains('.')) {
+        val ext = extensions.first().removePrefix(".")
+        File(directory, "$selected.$ext")
+    } else {
+        File(directory, selected)
+    }
+    return runCatching {
+        target.writeBytes(bytes)
+        true
+    }.getOrElse { false }
+}
+
 private val isMacOs: Boolean =
     System.getProperty("os.name").orEmpty().contains("mac", ignoreCase = true)
 

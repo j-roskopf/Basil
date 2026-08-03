@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joetr.basil.domain.repository.ImportHistoryEntry
+import com.joetr.basil.domain.usecase.ExportRecipesUseCase
+import com.joetr.basil.domain.usecase.ImportBasilRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportRecipeFromUrlUseCase
 import com.joetr.basil.domain.usecase.ImportMelaRecipesUseCase
 import com.joetr.basil.domain.usecase.ObserveImportHistoryUseCase
@@ -51,6 +53,8 @@ import kotlinx.coroutines.launch
 public class ImportViewModel(
     private val importRecipeFromUrl: ImportRecipeFromUrlUseCase,
     private val importMelaRecipes: ImportMelaRecipesUseCase,
+    private val importBasilRecipes: ImportBasilRecipesUseCase,
+    private val exportRecipes: ExportRecipesUseCase,
     observeImportHistory: ObserveImportHistoryUseCase,
 ) {
     public val history = observeImportHistory()
@@ -58,6 +62,10 @@ public class ImportViewModel(
     public suspend fun importUrl(url: String) = importRecipeFromUrl(url)
 
     public suspend fun importMelaArchive(bytes: ByteArray): ImportMelaRecipesUseCase.Result = importMelaRecipes(bytes)
+
+    public suspend fun importBasilBackup(bytes: ByteArray): ImportBasilRecipesUseCase.Result = importBasilRecipes(bytes)
+
+    public suspend fun exportAllRecipes(): ExportRecipesUseCase.Result = exportRecipes()
 }
 
 @Composable
@@ -74,8 +82,43 @@ public fun ImportScreen(
     var isLoading by remember { mutableStateOf(false) }
     var loadingMessage by remember { mutableStateOf("Extracting recipe…") }
     var melaImportMessage by remember { mutableStateOf<String?>(null) }
+    var basilImportMessage by remember { mutableStateOf<String?>(null) }
+    var exportMessage by remember { mutableStateOf<String?>(null) }
+    var pendingExportCount by remember { mutableStateOf<Int?>(null) }
     val history by viewModel.history.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
+    val basilImportPicker = rememberBasilBackupImportPicker(
+        onFilePicked = { bytes ->
+            if (isLoading) return@rememberBasilBackupImportPicker
+            scope.launch {
+                isLoading = true
+                loadingMessage = "Importing Basil backup…"
+                error = null
+                basilImportMessage = null
+                runCatching { viewModel.importBasilBackup(bytes) }
+                    .onSuccess { result ->
+                        basilImportMessage = when {
+                            result.failed > 0 ->
+                                "Imported ${result.saved} of ${result.parsed} recipes (${result.failed} failed)."
+                            else ->
+                                "Imported ${result.saved} recipes from backup."
+                        }
+                    }
+                    .onFailure { error = it.message }
+                isLoading = false
+            }
+        },
+        onError = { message -> error = message },
+    )
+    val basilExportSaver = rememberBasilBackupExportSaver(
+        onSaved = {
+            pendingExportCount?.let { count ->
+                exportMessage = "Exported $count recipes."
+            }
+            pendingExportCount = null
+        },
+        onError = { message -> error = message },
+    )
     val melaFilePicker = rememberMelaFilePicker(
         onFilePicked = { bytes ->
             if (isLoading) return@rememberMelaFilePicker
@@ -149,6 +192,33 @@ public fun ImportScreen(
                 onClick = melaFilePicker.pickFile,
             )
             ImportActionRow(
+                label = "Import Basil backup",
+                icon = BasilIcons.Download,
+                tint = colors.onSheet,
+                onClick = basilImportPicker.pickFile,
+            )
+            ImportActionRow(
+                label = "Export all recipes",
+                icon = BasilIcons.Download,
+                tint = colors.onSheet,
+                onClick = {
+                    if (isLoading) return@ImportActionRow
+                    scope.launch {
+                        isLoading = true
+                        loadingMessage = "Preparing export…"
+                        error = null
+                        exportMessage = null
+                        runCatching { viewModel.exportAllRecipes() }
+                            .onSuccess { result ->
+                                pendingExportCount = result.recipeCount
+                                basilExportSaver.saveFile(result.bytes)
+                            }
+                            .onFailure { error = it.message }
+                        isLoading = false
+                    }
+                },
+            )
+            ImportActionRow(
                 label = "Open in browser",
                 icon = BasilIcons.Globe,
                 tint = colors.onSheet,
@@ -164,6 +234,22 @@ public fun ImportScreen(
                 )
             }
             melaImportMessage?.let {
+                Text(
+                    it,
+                    color = colors.onSheet,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = BasilSpacing.sm),
+                )
+            }
+            basilImportMessage?.let {
+                Text(
+                    it,
+                    color = colors.onSheet,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = BasilSpacing.sm),
+                )
+            }
+            exportMessage?.let {
                 Text(
                     it,
                     color = colors.onSheet,
