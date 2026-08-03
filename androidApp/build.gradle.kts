@@ -29,6 +29,30 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+
+    signingConfigs {
+        create("release") {
+            val storeFilePath = System.getenv("RELEASE_STORE_FILE")
+            if (!storeFilePath.isNullOrBlank()) {
+                val store = rootProject.file(storeFilePath)
+                if (store.exists()) {
+                    storeFile = store
+                    storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                    keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                    keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+                }
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
+        }
+    }
 }
 
 dependencies {
