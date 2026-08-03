@@ -69,11 +69,18 @@ jobs:
           BASIL_GOOGLE_WEB_CLIENT_ID: ${{ secrets.BASIL_GOOGLE_WEB_CLIENT_ID }}
           BASIL_GOOGLE_WEB_CLIENT_SECRET: ${{ secrets.BASIL_GOOGLE_WEB_CLIENT_SECRET }}
         run: ./gradlew :composeApp:wasmJsBrowserDistribution
+      - name: Prepare GitHub Pages artifact
+        shell: bash
+        run: |
+          dist="composeApp/build/dist/wasmJs/productionExecutable"
+          touch "${dist}/.nojekyll"
+          cp "${dist}/index.html" "${dist}/404.html"
       - uses: actions/configure-pages@v5
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: composeApp/build/dist/wasmJs/productionExecutable/
+          include-hidden-files: true
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
