@@ -103,6 +103,14 @@ def main() -> None:
 """,
         encoding="utf-8",
     )
+    flatpak_icons = ROOT / "composeApp/flatpak/icons"
+    for size in (128, 256, 512):
+        icon_dir = flatpak_icons / str(size)
+        icon_dir.mkdir(parents=True, exist_ok=True)
+        master.resize((size, size), Image.Resampling.LANCZOS).convert("RGB").save(
+            icon_dir / "com.joetr.basil.png",
+        )
+
     webgen = ROOT / "branding/generated/web"
     webgen.mkdir(parents=True, exist_ok=True)
     master.resize((192, 192), Image.Resampling.LANCZOS).convert("RGB").save(webgen / "favicon-192.png")

@@ -216,7 +216,7 @@ jobs:
       - name: Install packaging tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y fakeroot flatpak flatpak-builder
+          sudo apt-get install -y fakeroot flatpak flatpak-builder imagemagick
           sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           sudo flatpak install --noninteractive flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
 
@@ -627,33 +627,8 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
-          if [[ "${SIGN_IOS}" == "true" ]]; then
-            echo "Building signed iOS app..."
-            xcodebuild \
-              -project iosApp/iosApp.xcodeproj \
-              -scheme iosApp \
-              -configuration Release \
-              -sdk iphoneos \
-              -derivedDataPath "${RUNNER_TEMP}/ios-release-derived" \
-              -archivePath "${RUNNER_TEMP}/iosApp.xcarchive" \
-              DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
-              PROVISIONING_PROFILE_SPECIFIER="${IOS_PROVISIONING_PROFILE_UUID}" \
-              CODE_SIGN_STYLE="Manual" \
-              archive
 
-            xcodebuild -exportArchive \
-              -archivePath "${RUNNER_TEMP}/iosApp.xcarchive" \
-              -exportPath "${RUNNER_TEMP}/exported" \
-              -exportOptionsPlist "${RUNNER_TEMP}/ExportOptions.plist"
-
-            ipa_path="$(find "${RUNNER_TEMP}/exported" -name '*.ipa' -print -quit)"
-            if [[ -z "${ipa_path}" ]]; then
-              echo "::error::Could not find exported IPA file"
-              exit 1
-            fi
-            mkdir -p release-artifacts
-            cp "${ipa_path}" "release-artifacts/Basil-${VERSION}.ipa"
-          else
+          package_unsigned_ipa() {
             echo "Building unsigned iOS app..."
             xcodebuild \
               -project iosApp/iosApp.xcodeproj \
@@ -674,6 +649,49 @@ jobs:
             cp -R "${app_path}" Payload/
             zip -r "release-artifacts/Basil-${VERSION}.ipa" Payload
             rm -rf Payload
+          }
+
+          if [[ "${SIGN_IOS}" == "true" ]]; then
+            echo "Building signed iOS app..."
+            set +e
+            xcodebuild \
+              -project iosApp/iosApp.xcodeproj \
+              -scheme iosApp \
+              -configuration Release \
+              -sdk iphoneos \
+              -derivedDataPath "${RUNNER_TEMP}/ios-release-derived" \
+              -archivePath "${RUNNER_TEMP}/iosApp.xcarchive" \
+              DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
+              PROVISIONING_PROFILE_SPECIFIER="${IOS_PROVISIONING_PROFILE_UUID}" \
+              CODE_SIGN_STYLE="Manual" \
+              archive
+            archive_status=$?
+
+            if [[ "${archive_status}" -eq 0 ]]; then
+              xcodebuild -exportArchive \
+                -archivePath "${RUNNER_TEMP}/iosApp.xcarchive" \
+                -exportPath "${RUNNER_TEMP}/exported" \
+                -exportOptionsPlist "${RUNNER_TEMP}/ExportOptions.plist"
+              export_status=$?
+            else
+              export_status=1
+            fi
+            set -e
+
+            if [[ "${archive_status}" -eq 0 && "${export_status}" -eq 0 ]]; then
+              ipa_path="$(find "${RUNNER_TEMP}/exported" -name '*.ipa' -print -quit)"
+              if [[ -z "${ipa_path}" ]]; then
+                echo "::error::Could not find exported IPA file"
+                exit 1
+              fi
+              mkdir -p release-artifacts
+              cp "${ipa_path}" "release-artifacts/Basil-${VERSION}.ipa"
+            else
+              echo "::warning::Signed iOS archive/export failed (check IOS_CERTIFICATE_BASE64 matches IOS_PROVISIONING_PROFILE_BASE64). Building unsigned IPA."
+              package_unsigned_ipa
+            fi
+          else
+            package_unsigned_ipa
           fi
 
       - name: Upload iOS artifacts

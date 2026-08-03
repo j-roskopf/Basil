@@ -4,21 +4,26 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "${root}/../.." && pwd)"
 
-source_icon="${repo_root}/branding/basil.png"
-icon_512="${repo_root}/composeApp/src/wasmJsMain/resources/icons/icon-512.png"
-icon_256="${repo_root}/composeApp/src/desktopMain/resources/icon.png"
+icon_128="${root}/icons/128/com.joetr.basil.png"
+icon_256="${root}/icons/256/com.joetr.basil.png"
+icon_512="${root}/icons/512/com.joetr.basil.png"
 
-if [[ ! -f "${source_icon}" ]]; then
-  if command -v python3 >/dev/null 2>&1 && [[ -f "${repo_root}/branding/generate_icons.py" ]]; then
-    python3 "${repo_root}/branding/generate_icons.py"
-  else
-    echo "Missing branding icon: ${source_icon}" >&2
-    exit 1
-  fi
+if [[ -f "${icon_128}" && -f "${icon_256}" && -f "${icon_512}" ]]; then
+  exit 0
 fi
 
-if [[ ! -f "${icon_512}" || ! -f "${icon_256}" ]]; then
-  "${repo_root}/branding/generate-icons.sh"
+if command -v python3 >/dev/null 2>&1 && python3 -c "import PIL" 2>/dev/null; then
+  python3 "${repo_root}/branding/generate_icons.py"
+  exit 0
+fi
+
+source_icon="${repo_root}/branding/basil.png"
+wasm_icon_512="${repo_root}/composeApp/src/wasmJsMain/resources/icons/icon-512.png"
+desktop_icon_256="${repo_root}/composeApp/src/desktopMain/resources/icon.png"
+
+if [[ ! -f "${source_icon}" ]]; then
+  echo "Missing branding icon: ${source_icon}" >&2
+  exit 1
 fi
 
 resize_icon() {
@@ -33,12 +38,12 @@ resize_icon() {
   elif command -v sips >/dev/null 2>&1; then
     sips -z "${size}" "${size}" "${input}" --out "${output}" >/dev/null
   else
-    echo "Install ImageMagick or run on macOS with sips to generate Flatpak icons." >&2
+    echo "Install ImageMagick, Pillow, or run on macOS with sips to generate Flatpak icons." >&2
     exit 1
   fi
 }
 
 mkdir -p "${root}/icons/128" "${root}/icons/256" "${root}/icons/512"
-cp "${icon_512}" "${root}/icons/512/com.joetr.basil.png"
-cp "${icon_256}" "${root}/icons/256/com.joetr.basil.png"
-resize_icon "${source_icon}" "${root}/icons/128/com.joetr.basil.png" 128
+cp "${wasm_icon_512}" "${icon_512}"
+cp "${desktop_icon_256}" "${icon_256}"
+resize_icon "${source_icon}" "${icon_128}" 128
