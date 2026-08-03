@@ -1,6 +1,27 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+/**
+ * jpackage MSI versions must be MAJOR.MINOR.BUILD where major <= 255, minor <= 255, build <= 65535.
+ * Display versions like YYYY.MMDD.HHMM exceed those limits, so fall back to basil.versionCode.
+ */
+fun jpackagePackageVersion(versionName: String, versionCode: Int): String {
+    val parts = versionName.split('.')
+    if (parts.size == 3) {
+        val major = parts[0].toIntOrNull()
+        val minor = parts[1].toIntOrNull()
+        val build = parts[2].toIntOrNull()
+        if (major != null && minor != null && build != null &&
+            major in 0..255 && minor in 0..255 && build in 0..65535
+        ) {
+            return "$major.$minor.$build"
+        }
+    }
+    val minor = (versionCode / 65535).coerceAtMost(255)
+    val build = (versionCode % 65535).let { if (it == 0) 1 else it }
+    return "1.$minor.$build"
+}
+
 fun String.asJpackageMacSigningUserName(): String =
     removePrefix("Developer ID Application: ")
         .removePrefix("Developer ID Installer: ")
@@ -119,7 +140,9 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Basil"
-            packageVersion = providers.gradleProperty("basil.versionName").getOrElse("0.1.0")
+            val versionName = providers.gradleProperty("basil.versionName").orElse("0.1.0").get()
+            val versionCode = providers.gradleProperty("basil.versionCode").orElse("1").get().toIntOrNull() ?: 1
+            packageVersion = jpackagePackageVersion(versionName, versionCode)
             val iconsDir = project.layout.projectDirectory.dir("src/desktopMain/resources/icons")
             macOS {
                 bundleID = "com.joetr.basil"
