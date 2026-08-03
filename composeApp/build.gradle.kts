@@ -62,6 +62,7 @@ kotlin {
             implementation(project(":core:database"))
             implementation(project(":core:network"))
             implementation(project(":core:platform"))
+            implementation(project(":core:updates"))
             implementation(project(":data:recipe"))
             implementation(project(":data:auth"))
             implementation(project(":data:image"))

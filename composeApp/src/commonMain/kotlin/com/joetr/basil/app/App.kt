@@ -33,6 +33,7 @@ import com.joetr.basil.feature.import.ImportScreen
 import com.joetr.basil.feature.recipes.RecipeDetailScreen
 import com.joetr.basil.feature.recipes.RecipesTabContent
 import com.joetr.basil.feature.settings.AccountScreen
+import com.joetr.basil.feature.settings.AppUpdateInstallDialog
 import com.joetr.basil.feature.scan.ScanScreen
 import com.joetr.basil.feature.scan.ScanViewModel
 import com.joetr.basil.navigation.AccountKey
@@ -107,6 +108,7 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
         var cookRecipeId by remember { mutableStateOf<String?>(null) }
         var selectedRecipeId by remember { mutableStateOf<String?>(null) }
         var sharedImportUrl by remember { mutableStateOf<String?>(null) }
+        val pendingUpdateInstall by graph.updates.pendingInstallConfirmation.collectAsState()
         val scope = rememberCoroutineScope()
 
         LaunchedEffect(Unit) {
@@ -251,6 +253,14 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
                     }
                 }
             }
+        }
+
+        pendingUpdateInstall?.let { update ->
+            AppUpdateInstallDialog(
+                update = update,
+                onDismiss = { graph.updates.respondToInstallConfirmation(false) },
+                onConfirm = { graph.updates.respondToInstallConfirmation(true) },
+            )
         }
     }
 }

@@ -34,6 +34,9 @@ import com.joetr.basil.domain.usecase.ObserveSyncStateUseCase
 import com.joetr.basil.domain.usecase.ObserveThemeModeUseCase
 import com.joetr.basil.domain.usecase.SetThemeModeUseCase
 import com.joetr.basil.domain.usecase.SignOutUseCase
+import com.joetr.basil.platform.BasilBuildInfo
+import com.joetr.basil.updates.AppUpdateService
+import com.joetr.basil.updates.AppUpdateState
 import com.joetr.basil.ui.components.BasilSheetColors
 import com.joetr.basil.ui.components.BasilSheetScaffold
 import com.joetr.basil.ui.components.SheetChip
@@ -55,6 +58,7 @@ public class SettingsViewModel(
     observeThemeMode: ObserveThemeModeUseCase,
     private val setThemeModeUseCase: SetThemeModeUseCase,
     private val signOutUseCase: SignOutUseCase,
+    public val updates: AppUpdateService,
 ) {
     public val session = observeSession()
     public val syncState = observeSyncState()
@@ -80,6 +84,7 @@ public fun AccountScreen(
     val session by viewModel.session.collectAsState(initial = null)
     val sync by viewModel.syncState.collectAsState(initial = null)
     val themeMode by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val updateState by viewModel.updates.state.collectAsState()
     val scope = rememberCoroutineScope()
     var showSignOutConfirm by remember { mutableStateOf(false) }
 
@@ -101,6 +106,22 @@ public fun AccountScreen(
                 )
             }
         }
+
+        SheetDivider(colors)
+
+        SheetSectionLabel("App", colors)
+        Spacer(Modifier.height(BasilSpacing.sm))
+        Text(
+            "v${BasilBuildInfo.versionName}",
+            style = MaterialTheme.typography.bodyLarge,
+            color = colors.mutedOnSheet,
+        )
+        UpdateStatusRow(
+            updateState = updateState,
+            colors = colors,
+            onCheck = { scope.launch { viewModel.updates.checkForUpdates() } },
+            onInstall = { scope.launch { viewModel.updates.installAvailableUpdate() } },
+        )
 
         SheetDivider(colors)
 
@@ -250,4 +271,49 @@ private fun ThemeMode.label(): String = when (this) {
     ThemeMode.SYSTEM -> "System"
     ThemeMode.LIGHT -> "Light"
     ThemeMode.DARK -> "Dark"
+}
+
+@Composable
+private fun UpdateStatusRow(
+    updateState: AppUpdateState,
+    colors: BasilSheetColors,
+    onCheck: () -> Unit,
+    onInstall: () -> Unit,
+) {
+    val updateText = when (updateState) {
+        AppUpdateState.Idle -> "Check for updates"
+        AppUpdateState.Checking -> "Checking for updates..."
+        AppUpdateState.Current -> "Basil is up to date"
+        is AppUpdateState.Available -> "Update to v${updateState.update.versionName}"
+        is AppUpdateState.Installing -> updateState.let {
+            val pct = it.progress?.let { progress -> " ${(progress * 100).toInt()}%" } ?: ""
+            "${it.message}$pct"
+        }
+        is AppUpdateState.Failed -> updateState.message
+    }
+    val isActionable = updateState is AppUpdateState.Idle ||
+        updateState is AppUpdateState.Available ||
+        updateState is AppUpdateState.Failed
+    val textColor = when (updateState) {
+        is AppUpdateState.Available -> MaterialTheme.colorScheme.primary
+        is AppUpdateState.Failed -> MaterialTheme.colorScheme.error
+        else -> colors.mutedOnSheet
+    }
+
+    Text(
+        updateText,
+        style = MaterialTheme.typography.bodyMedium,
+        color = textColor,
+        modifier = Modifier
+            .padding(top = BasilSpacing.sm)
+            .then(
+                if (isActionable) {
+                    Modifier.clickable {
+                        if (updateState is AppUpdateState.Available) onInstall() else onCheck()
+                    }
+                } else {
+                    Modifier
+                },
+            ),
+    )
 }

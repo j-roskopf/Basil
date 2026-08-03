@@ -37,6 +37,7 @@ import com.joetr.basil.network.BasilFirebase
 import com.joetr.basil.network.RecipeExtractor
 import com.joetr.basil.network.createBasilHttpClient
 import com.joetr.basil.platform.AppLifecycleObserver
+import com.joetr.basil.updates.createAppUpdateService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -66,6 +67,7 @@ public class AppGraph(
     public val imageRepositoryPublic: DefaultImageRepository get() = imageRepository
     private val imageUploadWorker = ImageUploadWorker(imageRepository, recipeRepository, syncService, scope)
     private val userSettingsRepository = DefaultUserSettingsRepository(dataLayer.database, scope)
+    public val updates = createAppUpdateService(scope, httpClient)
 
     private val startupJob = scope.launch {
         firebase.preloadPersistedSession()
@@ -77,6 +79,7 @@ public class AppGraph(
             syncService.syncNow()
         }
         imageUploadWorker.start()
+        updates.checkForUpdates()
     }
 
     init {
@@ -122,6 +125,7 @@ public class AppGraph(
         ObserveThemeModeUseCase(userSettingsRepository),
         SetThemeModeUseCase(userSettingsRepository),
         SignOutUseCase(sessionRepository),
+        updates,
     )
 
 }

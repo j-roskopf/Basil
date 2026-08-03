@@ -1,23 +1,32 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: 21
+  JAVA_DISTRIBUTION: temurin
+
 jobs:
-  build:
-    runs-on: macos-latest
+  gradle:
+    name: Gradle build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 21
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v4
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libxtst6 libxrender1 libxi6 libxrandr2
       - name: Placeholder google-services.json
         run: |
           if [ ! -f androidApp/google-services.json ]; then
@@ -27,15 +36,57 @@ jobs:
               "configuration_version":"1"
             }' > androidApp/google-services.json
           fi
-      - name: Build all targets
+      - name: Build and test
         env:
           FIREBASE_WEB_API_KEY: test-api-key
           FIREBASE_PROJECT_ID: basil-test
           BASIL_GOOGLE_WEB_CLIENT_ID: test-client-id.apps.googleusercontent.com
-        run: ./gradlew build wasmJsBrowserDistribution --no-daemon -Proborazzi.test.verify=false -Proborazzi.test.compare=false
-      - name: Cloud Function tests
+        run: xvfb-run -a ./gradlew build --no-daemon -Proborazzi.test.verify=false -Proborazzi.test.compare=false
+
+  wasm:
+    name: Web (wasm) build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build wasm distribution
+        env:
+          FIREBASE_WEB_API_KEY: test-api-key
+          FIREBASE_PROJECT_ID: basil-test
+          BASIL_GOOGLE_WEB_CLIENT_ID: test-client-id.apps.googleusercontent.com
+        run: ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon
+
+  firebase-functions:
+    name: Cloud Function tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+      - name: Run Cloud Function tests
         working-directory: firebase/functions
         run: npm ci && npm test
+
+  ios:
+    name: iOS build
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: gradle/actions/setup-gradle@v4
       - name: Compile iOS framework
         env:
           FIREBASE_WEB_API_KEY: test-api-key

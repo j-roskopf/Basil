@@ -71,6 +71,7 @@ tasks.register("generateBasilConfig") {
             "FIREBASE_FUNCTIONS_REGION",
             "basil.firebase.functionsRegion",
         ).ifBlank { "us-central1" }
+        val versionName = rootProject.providers.gradleProperty("basil.versionName").orElse("0.1.0").get()
         val googleWebClientId = resolve(
             "basil.google.webClientId",
             "BASIL_GOOGLE_WEB_CLIENT_ID",
@@ -112,6 +113,12 @@ tasks.register("generateBasilConfig") {
                     const val GOOGLE_WEB_CLIENT_ID: String = "${esc(googleWebClientId)}"
                     const val GOOGLE_WEB_CLIENT_SECRET: String = "${esc(googleWebClientSecret)}"
                     const val GOOGLE_IOS_CLIENT_ID: String = "${esc(googleIosClientId)}"
+                }
+
+                object BasilBuildInfo {
+                    const val versionName: String = "${esc(versionName)}"
+                    const val githubOwner: String = "j-roskopf"
+                    const val githubRepo: String = "Basil"
                 }
                 """.trimIndent(),
             )
