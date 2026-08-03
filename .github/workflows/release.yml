@@ -487,20 +487,24 @@ jobs:
             echo "${GOOGLE_SERVICE_INFO_PLIST_BASE64}" | base64 --decode > "${plist_path}"
             exit 0
           fi
-          if [[ -z "${BASIL_GOOGLE_IOS_CLIENT_ID}" ]]; then
-            echo "::error::Set GOOGLE_SERVICE_INFO_PLIST_BASE64 or BASIL_GOOGLE_IOS_CLIENT_ID for iOS release builds"
+          if [[ -z "${FIREBASE_WEB_API_KEY}" || -z "${FIREBASE_PROJECT_ID}" ]]; then
+            echo "::error::Set GOOGLE_SERVICE_INFO_PLIST_BASE64 or FIREBASE_WEB_API_KEY and FIREBASE_PROJECT_ID for iOS release builds"
             exit 1
           fi
-          reversed_client_id="com.googleusercontent.apps.${BASIL_GOOGLE_IOS_CLIENT_ID%%.apps.googleusercontent.com}"
+          client_id_block=""
+          reversed_client_id_block=""
+          if [[ -n "${BASIL_GOOGLE_IOS_CLIENT_ID}" ]]; then
+            reversed_client_id="com.googleusercontent.apps.${BASIL_GOOGLE_IOS_CLIENT_ID%%.apps.googleusercontent.com}"
+            client_id_block=$'  <key>CLIENT_ID</key>\n  <string>'"${BASIL_GOOGLE_IOS_CLIENT_ID}"$'</string>\n'
+            reversed_client_id_block=$'  <key>REVERSED_CLIENT_ID</key>\n  <string>'"${reversed_client_id}"$'</string>\n'
+          fi
           printf '%s\n' \
             '<?xml version="1.0" encoding="UTF-8"?>' \
             '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
             '<plist version="1.0">' \
             '<dict>' \
-            '  <key>CLIENT_ID</key>' \
-            "  <string>${BASIL_GOOGLE_IOS_CLIENT_ID}</string>" \
-            '  <key>REVERSED_CLIENT_ID</key>' \
-            "  <string>${reversed_client_id}</string>" \
+            "${client_id_block}" \
+            "${reversed_client_id_block}" \
             '  <key>API_KEY</key>' \
             "  <string>${FIREBASE_WEB_API_KEY}</string>" \
             '  <key>GCM_SENDER_ID</key>' \

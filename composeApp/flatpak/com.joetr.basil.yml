@@ -29,7 +29,7 @@ modules:
       - ln -s /app/lib/basil/bin/Basil /app/bin/Basil
       - install -Dm644 com.joetr.basil.desktop /app/share/applications/com.joetr.basil.desktop
       - install -Dm644 com.joetr.basil.metainfo.xml /app/share/metainfo/com.joetr.basil.metainfo.xml
-      - install -Dm644 com.joetr.basil.png /app/share/icons/hicolor/512x512/apps/com.joetr.basil.png
+      - install -Dm644 com.joetr.basil.png /app/share/icons/hicolor/1024x1024/apps/com.joetr.basil.png
     sources:
       - type: dir
         path: ../build/compose/binaries/main-release/app/Basil

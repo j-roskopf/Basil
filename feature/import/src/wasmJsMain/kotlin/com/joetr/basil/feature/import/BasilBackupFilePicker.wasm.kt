@@ -3,13 +3,14 @@ package com.joetr.basil.feature.import
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.joetr.basil.domain.export.BasilRecipeCodec
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.browser.document
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Int8Array
 import org.khronos.webgl.get
 import org.w3c.dom.HTMLAnchorElement
 import org.w3c.dom.HTMLInputElement
-import org.w3c.files.Blob
 import org.w3c.files.FileReader
 import org.w3c.files.get
 
@@ -46,6 +47,7 @@ internal actual fun rememberBasilBackupImportPicker(
     }
 }
 
+@OptIn(ExperimentalEncodingApi::class)
 @Composable
 internal actual fun rememberBasilBackupExportSaver(
     onSaved: () -> Unit,
@@ -55,13 +57,11 @@ internal actual fun rememberBasilBackupExportSaver(
         BasilBackupExportSaverControls(
             saveFile = { bytes ->
                 runCatching {
-                    val blob = Blob(arrayOf(bytes))
-                    val url = org.w3c.dom.url.URL.createObjectURL(blob)
+                    val url = "data:application/octet-stream;base64,${Base64.Default.encode(bytes)}"
                     val anchor = document.createElement("a") as HTMLAnchorElement
                     anchor.href = url
                     anchor.download = "basil-recipes.${BasilRecipeCodec.FILE_EXTENSION}"
                     anchor.click()
-                    org.w3c.dom.url.URL.revokeObjectURL(url)
                     onSaved()
                 }.onFailure { onError(it.message ?: "Could not save backup file") }
             },
