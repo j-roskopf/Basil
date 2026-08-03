@@ -555,8 +555,17 @@ jobs:
             security set-keychain-settings -lut 21600 "${keychain_path}"
             security unlock-keychain -p "${MACOS_KEYCHAIN_PASSWORD}" "${keychain_path}"
             security import "${ios_cert_path}" -P "${IOS_CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "${keychain_path}"
-            security list-keychains -d user -s "${keychain_path}" login.keychain
             security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${MACOS_KEYCHAIN_PASSWORD}" "${keychain_path}"
+            security list-keychains -d user -s "${keychain_path}"
+            security default-keychain -s "${keychain_path}"
+
+            code_sign_identity="$(security find-identity -v -p codesigning "${keychain_path}" | sed -En 's/^[[:space:]]*[0-9]+) [A-F0-9]+ "(.*)"$/\1/p' | head -1)"
+            if [[ -z "${code_sign_identity}" ]]; then
+              echo "::error::Could not find a valid code signing identity in IOS_CERTIFICATE_BASE64"
+              security find-identity -v -p codesigning "${keychain_path}" || true
+              exit 1
+            fi
+            echo "Using code signing identity: ${code_sign_identity}"
 
             mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
             profile_path="${HOME}/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision"
@@ -568,6 +577,16 @@ jobs:
             APPLICATION_ID=$(plutil -extract Entitlements.application-identifier raw "${RUNNER_TEMP}/profile.plist")
             BUNDLE_ID="${APPLICATION_ID#*.}"
 
+            get_task_allow="$(plutil -extract Entitlements.get-task-allow raw "${RUNNER_TEMP}/profile.plist" 2>/dev/null || echo false)"
+            if [[ "${get_task_allow}" == "true" || "${get_task_allow}" == "1" ]]; then
+              export_method="development"
+            elif plutil -extract ProvisionedDevices raw "${RUNNER_TEMP}/profile.plist" >/dev/null 2>&1; then
+              export_method="ad-hoc"
+            else
+              export_method="app-store"
+            fi
+            echo "Detected export method: ${export_method}"
+
             mv "${profile_path}" "${HOME}/Library/MobileDevice/Provisioning Profiles/${UUID}.mobileprovision"
 
             printf '%s\n' \
@@ -576,7 +595,7 @@ jobs:
               '<plist version="1.0">' \
               '<dict>' \
               '  <key>method</key>' \
-              '  <string>development</string>' \
+              "  <string>${export_method}</string>" \
               '  <key>signingStyle</key>' \
               '  <string>manual</string>' \
               "  <key>teamID</key>" \
@@ -593,6 +612,8 @@ jobs:
               echo "SIGN_IOS=true"
               echo "IOS_TEAM_ID=${TEAM_ID}"
               echo "IOS_PROVISIONING_PROFILE_UUID=${UUID}"
+              echo "IOS_CODE_SIGN_IDENTITY=${code_sign_identity}"
+              echo "IOS_KEYCHAIN_PATH=${keychain_path}"
             } >> "${GITHUB_ENV}"
           else
             echo "iOS signing secrets not fully provided. Building unsigned IPA."
@@ -628,6 +649,8 @@ jobs:
               DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
               PROVISIONING_PROFILE_SPECIFIER="${IOS_PROVISIONING_PROFILE_UUID}" \
               CODE_SIGN_STYLE="Manual" \
+              CODE_SIGN_IDENTITY="${IOS_CODE_SIGN_IDENTITY}" \
+              OTHER_CODE_SIGN_FLAGS="--keychain ${IOS_KEYCHAIN_PATH}" \
               archive
 
             xcodebuild -exportArchive \

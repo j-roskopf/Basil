@@ -9,6 +9,7 @@
     <p>Basil is a recipe library for browsing, editing, and cooking from your personal cookbook.</p>
   </description>
   <launchable type="desktop-id">com.joetr.basil.desktop</launchable>
+  <icon type="stock">com.joetr.basil</icon>
   <categories>
     <category>Office</category>
     <category>Utility</category>
