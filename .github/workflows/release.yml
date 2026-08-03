@@ -20,6 +20,31 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+      - name: Write google-services.json
+        env:
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+        run: |
+          cat > androidApp/google-services.json <<EOF
+          {
+            "project_info": {
+              "project_number": "0",
+              "project_id": "${FIREBASE_PROJECT_ID}",
+              "storage_bucket": "${FIREBASE_STORAGE_BUCKET}"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:0:android:0",
+                "android_client_info": {"package_name": "com.joetr.basil"}
+              },
+              "oauth_client": [],
+              "api_key": [{"current_key": "${FIREBASE_WEB_API_KEY}"}],
+              "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+            }],
+            "configuration_version": "1"
+          }
+          EOF
       - name: Package macOS, Android, and wasm artifacts
         env:
           FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
