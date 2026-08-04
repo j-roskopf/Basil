@@ -64,32 +64,22 @@ public class DefaultSessionRepository(
         }
 
         if (persisted != null && !persisted.isAnonymous) {
-            val active = runCatching { firebase.currentSession() }.getOrNull()
-                ?: runFirebaseAuthCall { firebase.refreshSession(persisted) }
-            firebase.saveSession(active)
-            withContext(Dispatchers.Default) {
-                database.recipesQueries.updateOwnerId(active.localId, deviceOwnerId)
+            val active = resolveStoredSession(persisted)
+            if (active != null) {
+                firebase.saveSession(active)
+                withContext(Dispatchers.Default) {
+                    database.recipesQueries.updateOwnerId(active.localId, deviceOwnerId)
+                }
+                session.value = SessionState.Authenticated(active.localId, active.email)
+                return
             }
-            session.value = SessionState.Authenticated(active.localId, active.email)
-            return
         }
 
-        val stored = persisted
+        val stored = if (persisted != null && !persisted.isAnonymous) null else persisted
         val active: FirebaseSession = if (stored == null) {
-            val anon = runFirebaseAuthCall { firebase.auth.signInAnonymously() }
-            firebase.saveSession(anon)
-            anon
-        } else if (stored.isAnonymous) {
-            val resolved = runCatching { firebase.refreshSession(stored) }.getOrElse {
-                runFirebaseAuthCall { firebase.auth.signInAnonymously() }
-            }
-            firebase.saveSession(resolved)
-            resolved
+            signInAnonymously()
         } else {
-            val resolved = runCatching { firebase.currentSession() }.getOrNull()
-                ?: runFirebaseAuthCall { firebase.refreshSession(stored) }
-            firebase.saveSession(resolved)
-            resolved
+            resolveStoredSession(stored) ?: signInAnonymously()
         }
 
         withContext(Dispatchers.Default) {
@@ -170,6 +160,32 @@ public class DefaultSessionRepository(
     }
 
     internal fun currentToken(): String? = firebase.peekIdToken()
+
+    private suspend fun signInAnonymously(): FirebaseSession {
+        val anon = runFirebaseAuthCall { firebase.auth.signInAnonymously() }
+        firebase.saveSession(anon)
+        return anon
+    }
+
+    private suspend fun resolveStoredSession(stored: FirebaseSession): FirebaseSession? {
+        if (stored.idToken.isBlank() || stored.refreshToken.isBlank() || stored.localId.isBlank()) {
+            firebase.saveSession(null)
+            return null
+        }
+        if (stored.expiresAtEpochMs - currentTimeMillis() > 60_000L) {
+            return stored
+        }
+        return runCatching {
+            runFirebaseAuthCall { firebase.refreshSession(stored) }
+        }.getOrElse { error ->
+            if (isUnrecoverableSessionError(error)) {
+                firebase.saveSession(null)
+                null
+            } else {
+                throw error
+            }
+        }
+    }
 
     private suspend fun promoteStoredFirebaseSession() {
         val stored = firebase.loadStoredSession() ?: return

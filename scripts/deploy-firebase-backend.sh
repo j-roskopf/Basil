@@ -103,6 +103,12 @@ echo "Deploying Firebase backend to project ${PROJECT_ID}..."
     --non-interactive
 )
 
+echo "Applying Storage CORS..."
+if ! "${ROOT_DIR}/scripts/apply-storage-cors.sh"; then
+  echo "warning: Storage CORS update failed. Web image loading needs CORS on the bucket."
+  echo "         Run ./scripts/apply-storage-cors.sh manually with gcloud or gsutil."
+fi
+
 if [[ "${SMOKE_TEST}" -eq 1 ]]; then
   echo "Smoke testing proxyImage..."
   image_url="https://www.google.com/favicon.ico"

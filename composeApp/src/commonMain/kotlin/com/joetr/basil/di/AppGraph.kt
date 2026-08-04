@@ -38,6 +38,7 @@ import com.joetr.basil.feature.settings.SettingsViewModel
 import com.joetr.basil.network.BasilFirebase
 import com.joetr.basil.network.RecipeExtractor
 import com.joetr.basil.network.createBasilHttpClient
+import com.joetr.basil.network.createBasilImageHttpClient
 import com.joetr.basil.platform.AppLifecycleObserver
 import com.joetr.basil.updates.createAppUpdateService
 import kotlinx.coroutines.CoroutineScope
@@ -50,11 +51,12 @@ public class AppGraph(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val httpClient = createBasilHttpClient()
+    public val imageHttpClient = createBasilImageHttpClient()
     private val firebase = BasilFirebase.create(
         httpClient = httpClient,
         sessionStore = createFirebaseSessionStore(dataLayer.database),
     )
-    private val imageRepository = DefaultImageRepository(dataLayer.database, httpClient, firebase)
+    private val imageRepository = DefaultImageRepository(dataLayer.database, imageHttpClient, firebase)
     private val syncService = RecipeSyncService(dataLayer.database, firebase, imageRepository, scope)
     private val recipeRepository = DefaultRecipeRepository(dataLayer.database, syncService, imageRepository)
     private val syncRepository = DefaultSyncRepository(syncService)

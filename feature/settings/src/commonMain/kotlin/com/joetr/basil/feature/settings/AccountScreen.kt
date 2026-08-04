@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.joetr.basil.ui.components.BasilConfirmDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -137,7 +139,6 @@ public fun AccountScreen(
                 text = "Sign out",
                 colors = colors,
                 onClick = { showSignOutConfirm = true },
-                tonal = true,
                 modifier = Modifier.padding(top = BasilSpacing.md),
             )
         } else {
@@ -291,12 +292,23 @@ private fun UpdateStatusRow(
             )
         }
         AppUpdateState.Checking -> {
-            Text(
-                "Checking for updates...",
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.mutedOnSheet,
+            Row(
                 modifier = rowModifier,
-            )
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(BasilSpacing.sm),
+            ) {
+                SheetPillButton(
+                    text = "Check for updates",
+                    colors = colors,
+                    onClick = {},
+                    enabled = false,
+                )
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = colors.mutedOnSheet,
+                )
+            }
         }
         AppUpdateState.Current -> {
             Text(
@@ -315,13 +327,34 @@ private fun UpdateStatusRow(
             )
         }
         is AppUpdateState.Installing -> {
-            val pct = updateState.progress?.let { progress -> " ${(progress * 100).toInt()}%" } ?: ""
-            Text(
-                "${updateState.message}$pct",
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.mutedOnSheet,
+            val downloadProgress = updateState.progress?.takeIf { it < 1f }
+            Row(
                 modifier = rowModifier,
-            )
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(BasilSpacing.sm),
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = colors.mutedOnSheet,
+                    progress = { downloadProgress ?: 1f },
+                )
+                Column {
+                    Text(
+                        updateState.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.mutedOnSheet,
+                    )
+                    downloadProgress?.let { progress ->
+                        Text(
+                            "${(progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.mutedOnSheet,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                }
+            }
         }
         is AppUpdateState.Failed -> {
             Column(modifier = rowModifier) {

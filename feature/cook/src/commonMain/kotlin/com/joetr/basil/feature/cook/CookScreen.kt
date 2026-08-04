@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -118,26 +119,6 @@ public fun CookScreen(
                 )
             },
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 28.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            CircleIconButton(BasilIcons.Close, "Close cook mode", onExit)
-            CircleIconButton(
-                icon = BasilIcons.Timer,
-                contentDescription = "Timer",
-                onClick = {
-                    if (currentMinutes != null) {
-                        showTimer = !showTimer
-                        if (showTimer && timerSeconds == 0L) timerSeconds = currentMinutes * 60L
-                    }
-                },
-                tint = if (showTimer || timerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            )
-        }
-
         if (page > 0) {
             Text(
                 "‹",
@@ -190,6 +171,51 @@ public fun CookScreen(
             }
         }
 
+        if (page > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.25f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { goTo(page - 1) },
+            )
+        }
+        if (page < steps.size) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.25f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { goTo(page + 1) },
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            CircleIconButton(BasilIcons.Close, "Close cook mode", onExit)
+            if (currentMinutes != null) {
+                CircleIconButton(
+                    icon = BasilIcons.Timer,
+                    contentDescription = "Timer",
+                    onClick = {
+                        showTimer = !showTimer
+                        if (showTimer && timerSeconds == 0L) timerSeconds = currentMinutes * 60L
+                    },
+                    tint = if (showTimer || timerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+
         if (showTimer && currentMinutes != null) {
             Column(
                 modifier = Modifier
@@ -216,11 +242,10 @@ public fun CookScreen(
                 .padding(bottom = 18.dp)
                 .clip(RoundedCornerShape(BasilRadii.field))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(start = 14.dp, end = 8.dp, top = 7.dp, bottom = 7.dp),
+                .padding(horizontal = 14.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(recipe?.title ?: "Recipe", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
-            Text("  +", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

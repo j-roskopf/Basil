@@ -15,15 +15,21 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalInspectionMode
 
 public val LocalSharedTransitionScope = compositionLocalOf<SharedTransitionScope?> { null }
 
 public val LocalRecipeAnimatedVisibilityScope = compositionLocalOf<AnimatedVisibilityScope?> { null }
 
+private val recipeSharedBoundsSpec = spring<Rect>(
+    dampingRatio = 0.86f,
+    stiffness = Spring.StiffnessMediumLow,
+)
+
 /** Fade keeps outgoing content alive for shared-element matching; opaque roots prevent white flash. */
 public fun recipeSharedElementTransitionSpec(): AnimatedContentTransitionScope<*>.() -> ContentTransform = {
-    (fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300)))
+    (fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(120)))
         .using(SizeTransform(clip = false))
 }
 
@@ -37,7 +43,7 @@ public fun Modifier.sharedRecipeImage(recipeId: String): Modifier {
         this@sharedRecipeImage.sharedElement(
             sharedContentState = rememberSharedContentState(key = "recipe_image_$recipeId"),
             animatedVisibilityScope = animatedScope,
-            boundsTransform = { _, _ -> spring(stiffness = Spring.StiffnessMediumLow) },
+            boundsTransform = { _, _ -> recipeSharedBoundsSpec },
         )
     }
 }
@@ -52,7 +58,7 @@ public fun Modifier.sharedRecipeTitle(recipeId: String): Modifier {
         this@sharedRecipeTitle.sharedBounds(
             sharedContentState = rememberSharedContentState(key = "recipe_title_$recipeId"),
             animatedVisibilityScope = animatedScope,
-            boundsTransform = { _, _ -> spring(stiffness = Spring.StiffnessMediumLow) },
-        )
+            boundsTransform = { _, _ -> recipeSharedBoundsSpec },
+        ).skipToLookaheadSize()
     }
 }

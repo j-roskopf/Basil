@@ -28,14 +28,27 @@ internal class AndroidAppUpdateService(
             return@withContext
         }
 
-        onProgress("Downloading Basil update...", null)
         val context = AndroidContextHolder.application
             ?: error("Android application context is not available.")
         val target = File(context.cacheDir, "updates").apply { mkdirs() }
             .resolve(asset.name.replace(Regex("""[^A-Za-z0-9._-]"""), "_"))
+        val totalBytes = asset.sizeBytes.takeIf { it > 0L }
+        var downloadedBytes = 0L
+
+        onProgress("Downloading Basil update...", downloadProgress(downloadedBytes, totalBytes))
 
         httpClient.get(asset.downloadUrl).bodyAsChannel().toInputStream().use { input ->
-            target.outputStream().use { output -> input.copyTo(output) }
+            target.outputStream().use { output ->
+                val buffer = ByteArray(DownloadBufferSize)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    if (read == 0) continue
+                    output.write(buffer, 0, read)
+                    downloadedBytes += read
+                    onProgress("Downloading Basil update...", downloadProgress(downloadedBytes, totalBytes))
+                }
+            }
         }
 
         onProgress("Ready to install Basil ${update.versionName}.", 1f)
@@ -59,6 +72,11 @@ internal class AndroidAppUpdateService(
         mutableState.value = AppUpdateState.Idle
     }
 
+    private fun downloadProgress(downloadedBytes: Long, totalBytes: Long?): Float? =
+        totalBytes
+            ?.takeIf { it > 0L }
+            ?.let { total -> (downloadedBytes.toDouble() / total.toDouble()).toFloat().coerceIn(0f, 1f) }
+
     private fun openReleasePage(url: String) {
         val context = AndroidContextHolder.application ?: return
         val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).apply {
@@ -74,3 +92,5 @@ public actual fun createAppUpdateService(
     scope: CoroutineScope,
     httpClient: HttpClient,
 ): AppUpdateService = AndroidAppUpdateService(scope, httpClient)
+
+private const val DownloadBufferSize = 256 * 1024

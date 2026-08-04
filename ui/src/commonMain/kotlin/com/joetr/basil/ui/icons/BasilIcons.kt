@@ -275,10 +275,56 @@ public object BasilIcons {
 
     public val Adjust: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
         with(scope) {
-            drawLine(tint, Offset(size.width * 0.2f, size.height * 0.35f), Offset(size.width * 0.8f, size.height * 0.35f), stroke.width, StrokeCap.Round)
-            drawLine(tint, Offset(size.width * 0.2f, size.height * 0.65f), Offset(size.width * 0.8f, size.height * 0.65f), stroke.width, StrokeCap.Round)
-            drawCircle(tint, radius = size.minDimension * 0.08f, center = Offset(size.width * 0.38f, size.height * 0.35f))
-            drawCircle(tint, radius = size.minDimension * 0.08f, center = Offset(size.width * 0.62f, size.height * 0.65f))
+            val inset = size.minDimension * 0.22f
+            val left = inset
+            val right = size.width - inset
+            val knobRadius = size.minDimension * 0.055f
+            val trackY = floatArrayOf(
+                size.height * 0.30f,
+                size.height * 0.50f,
+                size.height * 0.70f,
+            )
+            val knobX = floatArrayOf(
+                left + (right - left) * 0.14f,
+                left + (right - left) * 0.86f,
+                (left + right) / 2f,
+            )
+
+            trackY.forEach { y ->
+                drawLine(tint, Offset(left, y), Offset(right, y), stroke.width, StrokeCap.Round)
+            }
+            trackY.forEachIndexed { index, y ->
+                drawCircle(tint, radius = knobRadius, center = Offset(knobX[index], y))
+            }
+        }
+    }
+
+    public val Edit: BasilIconPainter = BasilIconPainter { scope, tint, _ ->
+        with(scope) {
+            val tip = Path().apply {
+                moveTo(size.width * 0.10f, size.height * 0.90f)
+                lineTo(size.width * 0.30f, size.height * 0.70f)
+                lineTo(size.width * 0.24f, size.height * 0.76f)
+                close()
+            }
+            val body = Path().apply {
+                moveTo(size.width * 0.29f, size.height * 0.71f)
+                lineTo(size.width * 0.71f, size.height * 0.29f)
+                lineTo(size.width * 0.77f, size.height * 0.35f)
+                lineTo(size.width * 0.35f, size.height * 0.77f)
+                close()
+            }
+            val eraser = Path().apply {
+                moveTo(size.width * 0.73f, size.height * 0.27f)
+                lineTo(size.width * 0.90f, size.height * 0.10f)
+                lineTo(size.width * 0.84f, size.height * 0.04f)
+                lineTo(size.width * 0.67f, size.height * 0.21f)
+                close()
+            }
+
+            drawPath(tip, tint)
+            drawPath(body, tint)
+            drawPath(eraser, tint)
         }
     }
 

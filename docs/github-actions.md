@@ -23,7 +23,8 @@ The **Deploy Web** workflow runs `scripts/deploy-firebase-backend.sh --smoke-tes
    - **Cloud Functions** — `extractRecipe`, `proxyImage`, `requestEmailOtp`, `verifyEmailOtp`
    - **Firestore** — security rules and composite indexes
    - **Storage** — security rules
-3. Smoke-tests `proxyImage` over HTTPS
+3. Applies **Storage CORS** (`firebase/storage-cors.json`) so the web app can load hosted images directly
+4. Smoke-tests `proxyImage` over HTTPS
 
 Deploy locally with the same script:
 
@@ -31,6 +32,14 @@ Deploy locally with the same script:
 firebase login
 ./scripts/deploy-firebase-backend.sh --smoke-test
 ```
+
+Apply Storage CORS only (one-time or after editing `firebase/storage-cors.json`):
+
+```bash
+./scripts/apply-storage-cors.sh
+```
+
+Requires `gcloud` or `gsutil` authenticated for the GCP project. CI deploy uses `FIREBASE_TOKEN`, which does not cover this step — run the CORS script locally or add a GCP service account to CI if you want it automated.
 
 CI uses a deploy token instead of interactive login:
 
@@ -174,4 +183,4 @@ Paste into `ANDROID_KEYSTORE_BASE64`. Store password, alias, and key password in
 
 - Restrict the Firebase web API key in Google Cloud Console (HTTP referrers for web, app id for mobile).
 - `BASIL_GOOGLE_WEB_CLIENT_SECRET` is compiled into desktop and wasm binaries today. Plan to move token exchange server-side or switch web/desktop to PKCE before broad public launch, then rotate the secret.
-- `proxyImage` is a public HTTP endpoint with SSRF protections but no auth; monitor usage and add rate limits if abused.
+- `proxyImage` is a public HTTP endpoint with SSRF protections but no auth. The web client no longer routes images through it; it remains available for ad-hoc use. Monitor usage and add rate limits if abused.

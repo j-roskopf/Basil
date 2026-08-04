@@ -40,11 +40,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.DrawableResource
 import coil3.compose.AsyncImage
 import com.joetr.basil.platform.imageUrlForDisplay
 import com.joetr.basil.domain.model.SyncStatus
+import basil.ui.generated.resources.BasilAssetIcon
+import basil.ui.generated.resources.BasilAssetIcons
 import com.joetr.basil.ui.icons.BasilIcon
 import com.joetr.basil.ui.icons.BasilIconPainter
 import com.joetr.basil.ui.icons.BasilIcons
@@ -288,18 +292,30 @@ public fun DetailStat(
 
 @Composable
 public fun DetailAction(
-    icon: BasilIconPainter,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    iconSize: Dp = 28.dp,
+    icon: BasilIconPainter? = null,
+    assetIcon: DrawableResource? = null,
 ) {
+    require(icon != null || assetIcon != null) { "DetailAction requires icon or assetIcon" }
     Column(
         modifier = modifier
             .clickable(onClick = onClick)
             .padding(horizontal = BasilSpacing.md, vertical = BasilSpacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        BasilIcon(icon, tint = MaterialTheme.colorScheme.primary, size = 28.dp, strokeWidth = 1.8.dp)
+        val tint = MaterialTheme.colorScheme.primary
+        Box(
+            modifier = Modifier.size(28.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                assetIcon != null -> BasilAssetIcon(assetIcon, tint = tint, size = iconSize)
+                icon != null -> BasilIcon(icon, tint = tint, size = iconSize, strokeWidth = 1.8.dp)
+            }
+        }
         Spacer(Modifier.height(BasilSpacing.xs))
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
     }
