@@ -41,7 +41,7 @@ jobs:
           FIREBASE_WEB_API_KEY: test-api-key
           FIREBASE_PROJECT_ID: basil-test
           BASIL_GOOGLE_WEB_CLIENT_ID: test-client-id.apps.googleusercontent.com
-        run: xvfb-run -a ./gradlew build --no-daemon -Proborazzi.test.verify=false -Proborazzi.test.compare=false
+        run: xvfb-run -a ./gradlew build --no-daemon -Proborazzi.test.verify=true
 
   wasm:
     name: Web (wasm) build
