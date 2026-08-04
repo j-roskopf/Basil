@@ -8,7 +8,7 @@ Production web URL: [https://basil.joetr.com/](https://basil.joetr.com/)
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | push/PR to `main` | Full Gradle build, desktop tests, Roborazzi, wasm distribution, Cloud Function unit tests, iOS simulator compile |
+| `ci.yml` | push/PR to `main` | Full Gradle build, desktop tests, Roborazzi verify (`-Proborazzi.test.verify=true`), wasm distribution, Cloud Function unit tests, iOS simulator compile |
 | `deploy-web.yml` | push to `main` | Deploy Firebase backend + build wasm + publish GitHub Pages |
 | `release.yml` | push tag `v*` | Package desktop installers, Android AAB, wasm; create GitHub Release |
 

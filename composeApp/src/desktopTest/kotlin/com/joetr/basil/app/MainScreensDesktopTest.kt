@@ -2,52 +2,164 @@ package com.joetr.basil.app
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.runDesktopComposeUiTest
-import androidx.compose.ui.unit.dp
+import coil3.ImageLoader
+import coil3.compose.setSingletonImageLoaderFactory
+import com.joetr.basil.domain.model.ExtractionConfidence
+import com.joetr.basil.domain.model.PendingSyncEntry
 import com.joetr.basil.domain.model.Recipe
 import com.joetr.basil.domain.model.RecipeQuery
-import com.joetr.basil.domain.repository.ImportHistoryEntry
+import com.joetr.basil.domain.model.RecipeStep
 import com.joetr.basil.domain.model.SessionState
 import com.joetr.basil.domain.model.SyncState
 import com.joetr.basil.domain.model.SyncStatus
+import com.joetr.basil.domain.model.ThemeMode
+import com.joetr.basil.domain.repository.ImageRepository
+import com.joetr.basil.domain.repository.ImportHistoryEntry
 import com.joetr.basil.domain.repository.ImportRepository
 import com.joetr.basil.domain.repository.RecipeRepository
 import com.joetr.basil.domain.repository.SessionRepository
 import com.joetr.basil.domain.repository.SyncRepository
-import com.joetr.basil.domain.repository.ImageRepository
+import com.joetr.basil.domain.repository.UserSettingsRepository
+import com.joetr.basil.domain.usecase.DeleteRecipeUseCase
 import com.joetr.basil.domain.usecase.ExportRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportBasilRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportMelaRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportRecipeFromUrlUseCase
 import com.joetr.basil.domain.usecase.MergeLocalIntoAccountUseCase
 import com.joetr.basil.domain.usecase.ObserveImportHistoryUseCase
+import com.joetr.basil.domain.usecase.ObserveRecipeUseCase
 import com.joetr.basil.domain.usecase.ObserveRecipesUseCase
 import com.joetr.basil.domain.usecase.ObserveSessionUseCase
 import com.joetr.basil.domain.usecase.ObserveSyncStateUseCase
-import com.joetr.basil.domain.model.ThemeMode
-import com.joetr.basil.domain.repository.UserSettingsRepository
 import com.joetr.basil.domain.usecase.ObserveThemeModeUseCase
+import com.joetr.basil.domain.usecase.SaveRecipeUseCase
+import com.joetr.basil.domain.usecase.ScanRecipeFromImageUseCase
 import com.joetr.basil.domain.usecase.SetThemeModeUseCase
 import com.joetr.basil.domain.usecase.SignOutUseCase
-import com.joetr.basil.feature.import.ImportScreen
-import com.joetr.basil.feature.import.ImportViewModel
+import com.joetr.basil.domain.usecase.ToggleFavouriteUseCase
 import com.joetr.basil.feature.auth.AuthScreen
 import com.joetr.basil.feature.auth.AuthViewModel
+import com.joetr.basil.feature.cook.CookScreen
+import com.joetr.basil.feature.cook.CookViewModel
+import com.joetr.basil.feature.editor.EditorScreen
+import com.joetr.basil.feature.editor.EditorViewModel
+import com.joetr.basil.feature.import.ImportScreen
+import com.joetr.basil.feature.import.ImportViewModel
+import com.joetr.basil.feature.recipes.RecipeDetailScreen
+import com.joetr.basil.feature.recipes.RecipeDetailViewModel
 import com.joetr.basil.feature.recipes.RecipesScreen
 import com.joetr.basil.feature.recipes.RecipesViewModel
+import com.joetr.basil.feature.scan.ScanScreen
+import com.joetr.basil.feature.scan.ScanViewModel
 import com.joetr.basil.feature.settings.AccountScreen
 import com.joetr.basil.feature.settings.SettingsViewModel
 import com.joetr.basil.ui.theme.BasilTheme
+import com.joetr.basil.updates.AppUpdateService
+import com.joetr.basil.updates.AppUpdateState
+import com.joetr.basil.updates.AvailableUpdate
 import io.github.takahirom.roborazzi.captureRoboImage
 import java.io.File
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Test
 
 private val roboDir = File("src/desktopTest/resources/roborazzi")
+
+private data class Viewport(val label: String, val width: Int, val height: Int)
+
+/** Mobile / tablet / desktop capture sizes. */
+private val viewports = listOf(
+    Viewport("390", width = 390, height = 844),
+    Viewport("720", width = 720, height = 1024),
+    Viewport("1200", width = 1200, height = 800),
+)
+
+private const val now = 1_700_000_000_000L
+
+private val foodDir = File("src/desktopTest/resources/food").absoluteFile
+
+private fun foodFileUrl(name: String): String =
+    File(foodDir, name).also { check(it.isFile) { "Missing food fixture: ${it.path}" } }.toURI().toString()
+
+private val soupImageUrl = foodFileUrl("tomato_soup.jpg")
+private val pastaImageUrl = foodFileUrl("garlic_pasta.jpg")
+private val saladImageUrl = foodFileUrl("lemon_salad.jpg")
+
+private val sampleRecipe = Recipe(
+    id = "recipe-soup",
+    ownerId = "guest",
+    title = "Tomato Soup",
+    description = "A cozy winter classic with roasted tomatoes and basil.",
+    imageUrl = soupImageUrl,
+    sourceUrl = "https://example.com/tomato-soup",
+    servings = 4,
+    prepMinutes = 15,
+    cookMinutes = 30,
+    ingredients = listOf(
+        "2 lb ripe tomatoes",
+        "1 yellow onion, diced",
+        "3 cloves garlic",
+        "2 cups vegetable broth",
+        "Fresh basil",
+    ),
+    steps = listOf(
+        RecipeStep("Roast tomatoes at 400°F until blistered.", minutes = 25),
+        RecipeStep("Sauté onion and garlic until soft.", minutes = 8),
+        RecipeStep("Simmer everything together, then blend smooth.", minutes = 15),
+        RecipeStep("Finish with basil and salt to taste."),
+    ),
+    tags = listOf("soup", "comfort"),
+    notes = "Serve with crusty bread.",
+    isFavourite = true,
+    createdAt = now,
+    updatedAt = now,
+)
+
+private val sampleRecipes = listOf(
+    sampleRecipe,
+    sampleRecipe.copy(
+        id = "recipe-pasta",
+        title = "Garlic Pasta",
+        description = "Weeknight pasta with olive oil and chili.",
+        imageUrl = pastaImageUrl,
+        sourceUrl = "https://example.com/garlic-pasta",
+        prepMinutes = 10,
+        cookMinutes = 20,
+        tags = listOf("pasta"),
+        isFavourite = false,
+        ingredients = listOf("12 oz spaghetti", "6 cloves garlic", "Olive oil", "Chili flakes"),
+        steps = listOf(
+            RecipeStep("Boil pasta until al dente.", minutes = 10),
+            RecipeStep("Bloom garlic in olive oil."),
+            RecipeStep("Toss pasta with oil and chili."),
+        ),
+    ),
+    sampleRecipe.copy(
+        id = "recipe-salad",
+        title = "Lemon Herb Salad",
+        description = "Bright greens with lemon vinaigrette.",
+        imageUrl = saladImageUrl,
+        sourceUrl = null,
+        prepMinutes = 10,
+        cookMinutes = null,
+        tags = listOf("salad"),
+        isFavourite = false,
+        ingredients = listOf("Mixed greens", "Lemon", "Olive oil", "Fresh herbs"),
+        steps = listOf(
+            RecipeStep("Whisk lemon with olive oil."),
+            RecipeStep("Toss greens and herbs with dressing."),
+        ),
+    ),
+)
 
 private val fakeImageRepository = object : ImageRepository {
     override suspend fun saveLocalImage(recipeId: String, bytes: ByteArray) = "local-image"
@@ -56,21 +168,36 @@ private val fakeImageRepository = object : ImageRepository {
     override suspend fun readLocalImage(localImageId: String): ByteArray? = null
 }
 
+private val fakeRecipeRepository = object : RecipeRepository {
+    override fun observeRecipes(query: RecipeQuery) = flowOf(sampleRecipes)
+    override fun observeRecipe(id: String) = flowOf(sampleRecipes.find { it.id == id })
+    override suspend fun save(recipe: Recipe, syncImmediately: Boolean) = Unit
+    override suspend fun delete(id: String) = Unit
+    override suspend fun toggleFavourite(id: String) = Unit
+    override suspend fun countByOwner(ownerId: String) = sampleRecipes.size
+    override suspend fun getAllByOwner(ownerId: String) = sampleRecipes
+    override suspend fun mergeLocalIntoAccount(localOwnerId: String, accountOwnerId: String) = 0
+}
+
 private val fakeImportRepository = object : ImportRepository {
     override suspend fun extractFromUrl(url: String) = error("screenshot")
     override suspend fun extractFromOcrText(text: String) = error("screenshot")
-    override fun observeImportHistory() = flowOf(emptyList<ImportHistoryEntry>())
-}
-
-private val fakeRecipeRepository = object : RecipeRepository {
-    override fun observeRecipes(query: RecipeQuery) = flowOf(emptyList<Recipe>())
-    override fun observeRecipe(id: String) = flowOf(null)
-    override suspend fun save(recipe: com.joetr.basil.domain.model.Recipe, syncImmediately: Boolean) = Unit
-    override suspend fun delete(id: String) = Unit
-    override suspend fun toggleFavourite(id: String) = Unit
-    override suspend fun countByOwner(ownerId: String) = 0
-    override suspend fun getAllByOwner(ownerId: String) = emptyList<Recipe>()
-    override suspend fun mergeLocalIntoAccount(localOwnerId: String, accountOwnerId: String) = 0
+    override fun observeImportHistory() = flowOf(
+        listOf(
+            ImportHistoryEntry(
+                url = "https://example.com/tomato-soup",
+                title = "Tomato Soup",
+                confidence = ExtractionConfidence.FULL,
+                importedAt = now,
+            ),
+            ImportHistoryEntry(
+                url = "https://example.com/garlic-pasta",
+                title = "Garlic Pasta",
+                confidence = ExtractionConfidence.PARTIAL,
+                importedAt = now - 86_400_000,
+            ),
+        ),
+    )
 }
 
 private val fakeSessionRepository = object : SessionRepository {
@@ -87,13 +214,27 @@ private val fakeSessionRepository = object : SessionRepository {
     override suspend fun declineMerge() = Unit
 }
 
+private val fakeAuthenticatedSessionRepository = object : SessionRepository by fakeSessionRepository {
+    override fun observeSession() = flowOf(SessionState.Authenticated("user-1", "joer@example.com"))
+}
+
 private val fakeUserSettingsRepository = object : UserSettingsRepository {
     override fun observeThemeMode() = flowOf(ThemeMode.SYSTEM)
     override suspend fun setThemeMode(mode: ThemeMode) = Unit
 }
 
 private val fakeSyncRepository = object : SyncRepository {
-    override fun observeSyncState() = flowOf(SyncState(SyncStatus.SYNCED))
+    override fun observeSyncState() = flowOf(
+        SyncState(
+            status = SyncStatus.PENDING,
+            pendingCount = 2,
+            pendingEntries = listOf(
+                PendingSyncEntry(id = "recipe-soup", title = "Tomato Soup", kind = "recipe"),
+                PendingSyncEntry(id = "recipe-pasta", title = "Garlic Pasta", kind = "recipe"),
+            ),
+        ),
+    )
+
     override suspend fun syncNow() = Unit
     override suspend fun syncAfterSignIn() = Unit
     override suspend fun retryFailed() = Unit
@@ -101,10 +242,42 @@ private val fakeSyncRepository = object : SyncRepository {
     override suspend fun dropPendingSyncEntry(id: String) = Unit
 }
 
+private val fakeUpdates = object : AppUpdateService {
+    override val state: StateFlow<AppUpdateState> = MutableStateFlow(AppUpdateState.Current).asStateFlow()
+    override val pendingInstallConfirmation: StateFlow<AvailableUpdate?> =
+        MutableStateFlow<AvailableUpdate?>(null).asStateFlow()
+
+    override suspend fun checkForUpdates(onFailure: (Throwable) -> Unit) = Unit
+    override suspend fun installAvailableUpdate(onMessage: (String) -> Unit) = Unit
+    override fun respondToInstallConfirmation(install: Boolean) = Unit
+}
+
+private fun importViewModel() = ImportViewModel(
+    ImportRecipeFromUrlUseCase(fakeImportRepository),
+    ImportMelaRecipesUseCase(
+        fakeRecipeRepository,
+        fakeImageRepository,
+        fakeSyncRepository,
+        ObserveSessionUseCase(fakeSessionRepository),
+    ),
+    ImportBasilRecipesUseCase(
+        fakeRecipeRepository,
+        fakeImageRepository,
+        fakeSyncRepository,
+        ObserveSessionUseCase(fakeSessionRepository),
+    ),
+    ExportRecipesUseCase(
+        fakeRecipeRepository,
+        fakeImageRepository,
+        ObserveSessionUseCase(fakeSessionRepository),
+    ),
+    ObserveImportHistoryUseCase(fakeImportRepository),
+)
+
 class MainScreensDesktopTest {
     @OptIn(ExperimentalTestApi::class)
     @Test
-    fun recipesScreenWidths() = captureAtWidths("Recipes") {
+    fun recipesScreenWidths() = captureAtWidths("Recipes", awaitText = "Tomato Soup", waitForImages = true) {
         RecipesScreen(
             RecipesViewModel(ObserveRecipesUseCase(fakeRecipeRepository)),
             onRecipeClick = {},
@@ -114,44 +287,43 @@ class MainScreensDesktopTest {
 
     @OptIn(ExperimentalTestApi::class)
     @Test
-    fun importScreenWidths() = captureAtWidths("Import") {
-        ImportScreen(
-            ImportViewModel(
-                ImportRecipeFromUrlUseCase(fakeImportRepository),
-                ImportMelaRecipesUseCase(
-                    fakeRecipeRepository,
-                    fakeImageRepository,
-                    fakeSyncRepository,
-                    ObserveSessionUseCase(fakeSessionRepository),
-                ),
-                ImportBasilRecipesUseCase(
-                    fakeRecipeRepository,
-                    fakeImageRepository,
-                    fakeSyncRepository,
-                    ObserveSessionUseCase(fakeSessionRepository),
-                ),
-                ExportRecipesUseCase(
-                    fakeRecipeRepository,
-                    fakeImageRepository,
-                    ObserveSessionUseCase(fakeSessionRepository),
-                ),
-                ObserveImportHistoryUseCase(fakeImportRepository),
+    fun recipeDetailScreenWidths() = captureAtWidths("RecipeDetail", awaitText = "Tomato Soup", waitForImages = true) {
+        RecipeDetailScreen(
+            viewModel = RecipeDetailViewModel(
+                ObserveRecipeUseCase(fakeRecipeRepository),
+                DeleteRecipeUseCase(fakeRecipeRepository),
+                ToggleFavouriteUseCase(fakeRecipeRepository),
             ),
-            onExtracted = {},
+            recipeId = sampleRecipe.id,
+            onBack = {},
+            onEdit = {},
+            onCook = {},
         )
     }
 
     @OptIn(ExperimentalTestApi::class)
     @Test
-    fun accountScreenWidths() = captureAtWidths("Account") {
+    fun importScreenWidths() = captureAtWidths("Import", awaitText = "Tomato Soup") {
+        ImportScreen(
+            viewModel = importViewModel(),
+            onExtracted = {},
+            onScan = {},
+            initialUrl = "https://example.com/tomato-soup",
+        )
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun accountScreenWidths() = captureAtWidths("Account", awaitText = "joer@example.com") {
         AccountScreen(
             SettingsViewModel(
-                ObserveSessionUseCase(fakeSessionRepository),
+                ObserveSessionUseCase(fakeAuthenticatedSessionRepository),
                 ObserveSyncStateUseCase(fakeSyncRepository),
                 fakeSyncRepository,
                 ObserveThemeModeUseCase(fakeUserSettingsRepository),
                 SetThemeModeUseCase(fakeUserSettingsRepository),
-                SignOutUseCase(fakeSessionRepository),
+                SignOutUseCase(fakeAuthenticatedSessionRepository),
+                fakeUpdates,
             ),
             onSignIn = {},
         )
@@ -159,7 +331,7 @@ class MainScreensDesktopTest {
 
     @OptIn(ExperimentalTestApi::class)
     @Test
-    fun authScreenWidths() = captureAtWidths("Auth") {
+    fun authScreenWidths() = captureAtWidths("Auth", awaitText = "Welcome back") {
         AuthScreen(
             viewModel = AuthViewModel(
                 sessionRepository = fakeSessionRepository,
@@ -170,17 +342,78 @@ class MainScreensDesktopTest {
     }
 
     @OptIn(ExperimentalTestApi::class)
-    private fun captureAtWidths(screen: String, content: @androidx.compose.runtime.Composable () -> Unit) {
-        listOf(390, 720, 1200).forEach { width ->
-            runDesktopComposeUiTest {
+    @Test
+    fun editorScreenWidths() = captureAtWidths("Editor", awaitText = "Tomato Soup", waitForImages = true) {
+        EditorScreen(
+            viewModel = EditorViewModel(
+                SaveRecipeUseCase(fakeRecipeRepository),
+                ObserveSessionUseCase(fakeSessionRepository),
+                ObserveRecipeUseCase(fakeRecipeRepository),
+                fakeImageRepository,
+            ),
+            recipeId = sampleRecipe.id,
+            extractedJson = null,
+            onSaved = {},
+            onBack = {},
+        )
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun cookScreenWidths() = captureAtWidths("Cook", awaitText = "2 lb ripe tomatoes") {
+        CookScreen(
+            viewModel = CookViewModel(ObserveRecipeUseCase(fakeRecipeRepository)),
+            recipeId = sampleRecipe.id,
+            onExit = {},
+        )
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun scanScreenWidths() = captureAtWidths("Scan", awaitText = "Scanning is only available on mobile.") {
+        ScanScreen(
+            viewModel = ScanViewModel(
+                ScanRecipeFromImageUseCase(fakeImportRepository),
+                fakeImageRepository,
+            ),
+            onExtracted = {},
+            onBack = {},
+        )
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    private fun captureAtWidths(
+        screen: String,
+        awaitText: String? = null,
+        waitForImages: Boolean = false,
+        content: @Composable () -> Unit,
+    ) {
+        viewports.forEach { viewport ->
+            runDesktopComposeUiTest(width = viewport.width, height = viewport.height) {
                 setContent {
+                    setSingletonImageLoaderFactory { context ->
+                        ImageLoader.Builder(context).build()
+                    }
                     BasilTheme(darkTheme = false) {
-                        Box(Modifier.width(width.dp).fillMaxSize()) {
+                        Box(Modifier.fillMaxSize()) {
                             content()
                         }
                     }
                 }
-                onRoot().captureRoboImage(roboDir.resolve("${screen}_${width}.png").absolutePath)
+                waitForIdle()
+                if (awaitText != null) {
+                    waitUntil(timeoutMillis = 5_000) {
+                        onAllNodesWithText(awaitText, substring = true)
+                            .fetchSemanticsNodes()
+                            .isNotEmpty()
+                    }
+                }
+                if (waitForImages) {
+                    // Give Coil time to decode local food fixtures into AsyncImage.
+                    delay(750)
+                    waitForIdle()
+                }
+                onRoot().captureRoboImage(roboDir.resolve("${screen}_${viewport.label}.png").absolutePath)
             }
         }
     }
