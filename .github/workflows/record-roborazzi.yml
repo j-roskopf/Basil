@@ -2,6 +2,9 @@ name: Record Roborazzi (Linux)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - codex/roborazzi-screenshots-readme
 
 env:
   JAVA_VERSION: 21
