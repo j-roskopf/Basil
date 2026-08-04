@@ -199,17 +199,20 @@ public fun SheetPillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     tonal: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val bg = if (tonal) colors.onSheet.copy(alpha = 0.14f) else colors.onSheet
     val fg = if (tonal) colors.onSheet else colors.sheet
+    val bgAlpha = if (enabled) bg.alpha else bg.alpha * 0.5f
+    val fgAlpha = if (enabled) fg.alpha else fg.alpha * 0.6f
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(BasilRadii.chip))
-            .background(bg)
-            .clickable(onClick = onClick)
+            .background(bg.copy(alpha = bgAlpha))
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = BasilSpacing.lg, vertical = BasilSpacing.sm),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = fg, style = MaterialTheme.typography.labelMedium)
+        Text(text, color = fg.copy(alpha = fgAlpha), style = MaterialTheme.typography.labelMedium)
     }
 }

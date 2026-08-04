@@ -11,12 +11,15 @@ public fun desktopDataDirectoryName(): String = ".basil"
 public fun localStorageDirectoryName(): String = "basil"
 
 /**
- * Browsers fetch Coil image bytes through Ktor, so third-party image hosts
- * must opt into CORS. Route remote recipe images through the Firebase proxy on
- * web; native clients can continue loading the original URL directly.
+ * Coil on web fetches image bytes through Ktor, so cross-origin hosts must opt into CORS.
+ * Route remote recipe images through the proxyImage Cloud Function on web.
  */
-public fun imageUrlForDisplay(imageUrl: String?): String? {
-    if (imageUrl.isNullOrBlank() || platformName() != "web") return imageUrl
+public fun imageUrlForDisplay(imageUrl: String?): String? =
+    imageUrl?.let(::remoteImageUrlForPlatform)
+
+/** Same routing as [imageUrlForDisplay], for downloading remote images on web. */
+public fun remoteImageUrlForPlatform(imageUrl: String): String {
+    if (platformName() != "web") return imageUrl
     if (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://")) return imageUrl
     val projectId = BasilConfig.FIREBASE_PROJECT_ID
     if (projectId.isBlank()) return imageUrl

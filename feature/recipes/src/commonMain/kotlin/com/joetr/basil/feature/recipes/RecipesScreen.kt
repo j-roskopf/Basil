@@ -71,10 +71,8 @@ public fun RecipesScreen(
     val recipes by viewModel.recipes.collectAsState(initial = emptyList())
     val query by viewModel.query.collectAsState()
 
-    fun sharedRecipeId(recipeId: String): String? = when (detailOpenRecipeId) {
-        null -> recipeId
-        else -> if (recipeId == detailOpenRecipeId) recipeId else null
-    }
+    fun sharedRecipeId(recipeId: String): String? =
+        if (detailOpenRecipeId == null) recipeId else null
 
     BoxWithConstraints(modifier.fillMaxSize()) {
             val phoneLayout = maxWidth < 600.dp

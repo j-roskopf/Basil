@@ -83,7 +83,7 @@ private fun recipeShellState(
 public fun App(graph: AppGraph, initialWebPath: String? = null) {
     setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
-            .components { add(KtorNetworkFetcherFactory()) }
+            .components { add(KtorNetworkFetcherFactory(httpClient = graph.imageHttpClient)) }
             .basilImages(imageRepository = graph.imageRepositoryPublic)
             .build()
     }
@@ -156,12 +156,7 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
                     viewModel = graph.editorViewModel,
                     recipeId = currentKey.recipeId,
                     extractedJson = currentKey.extractedJson,
-                    onSaved = {
-                        topLevel = TopLevelDestination.Recipes
-                        selectedRecipeId = null
-                        backStack.clear()
-                        backStack += RecipesKey
-                    },
+                    onSaved = { backStack.removeLast() },
                     onBack = { backStack.removeLast() },
                 )
                 else -> {

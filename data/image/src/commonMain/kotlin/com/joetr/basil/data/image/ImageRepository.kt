@@ -7,6 +7,7 @@ import com.joetr.basil.domain.model.Recipe
 import com.joetr.basil.domain.repository.ImageRepository
 import com.joetr.basil.network.BasilFirebase
 import com.joetr.basil.platform.currentTimeMillis
+import com.joetr.basil.platform.remoteImageUrlForPlatform
 import com.joetr.basil.platform.resizeImage
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -51,7 +52,7 @@ public class DefaultImageRepository(
 
     override suspend fun fetchAndStageRemoteImage(recipeId: String, remoteUrl: String): String? =
         runCatching {
-            val bytes = httpClient.get(remoteUrl).readRawBytes()
+            val bytes = httpClient.get(remoteImageUrlForPlatform(remoteUrl)).readRawBytes()
             saveLocalImage(recipeId, bytes)
         }.getOrNull()
 

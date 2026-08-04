@@ -25,6 +25,16 @@ internal fun matchesFirebaseAuthCode(throwable: Throwable, vararg codes: String)
     return codes.any { code.contains(it, ignoreCase = true) }
 }
 
+/** Refresh token is no longer valid; persisted credentials should be cleared. */
+internal fun isUnrecoverableSessionError(throwable: Throwable): Boolean =
+    matchesFirebaseAuthCode(
+        throwable,
+        "TOKEN_EXPIRED",
+        "INVALID_REFRESH_TOKEN",
+        "USER_NOT_FOUND",
+        "USER_DISABLED",
+    )
+
 /**
  * Runs a Firebase Identity Toolkit / Cloud Functions call, translating a 4xx
  * [ClientRequestException] into a friendly [IllegalStateException] using the
@@ -97,7 +107,9 @@ internal fun authErrorMessage(raw: String): String {
             "Password is too weak. Use at least 6 characters."
         message.contains("INVALID_EMAIL", ignoreCase = true) ->
             "That doesn't look like a valid email address."
-        message.contains("CREDENTIAL_TOO_OLD_LOGIN_AGAIN", ignoreCase = true) ->
+        message.contains("CREDENTIAL_TOO_OLD_LOGIN_AGAIN", ignoreCase = true) ||
+            message.contains("TOKEN_EXPIRED", ignoreCase = true) ||
+            message.contains("INVALID_REFRESH_TOKEN", ignoreCase = true) ->
             "Please sign in again to continue."
         message.contains("FEDERATED_USER_ID_ALREADY_LINKED", ignoreCase = true) ||
             message.contains("CREDENTIAL_ALREADY_IN_USE", ignoreCase = true) ->

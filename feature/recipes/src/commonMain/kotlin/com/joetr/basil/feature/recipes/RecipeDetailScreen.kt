@@ -2,6 +2,7 @@ package com.joetr.basil.feature.recipes
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,7 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import com.joetr.basil.ui.components.BasilAlertDialog
 import com.joetr.basil.ui.components.BasilConfirmDialog
+import com.joetr.basil.ui.components.DialogActionButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -30,8 +33,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import com.joetr.basil.domain.model.Recipe
+import com.joetr.basil.domain.recipe.IngredientScaler
 import com.joetr.basil.domain.model.RecipeStep
 import com.joetr.basil.domain.usecase.DeleteRecipeUseCase
 import com.joetr.basil.domain.usecase.ObserveRecipeUseCase
@@ -45,6 +51,7 @@ import com.joetr.basil.ui.components.RecipeImage
 import com.joetr.basil.ui.components.RecipeImageFullscreen
 import com.joetr.basil.ui.components.SectionHeader
 import com.joetr.basil.ui.components.hostFromUrl
+import basil.ui.generated.resources.BasilAssetIcons
 import com.joetr.basil.ui.icons.BasilIcons
 import com.joetr.basil.ui.layout.basilSafeArea
 import com.joetr.basil.ui.motion.sharedRecipeImage
@@ -85,6 +92,8 @@ public fun RecipeDetailScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showFullscreenImage by remember { mutableStateOf(false) }
+    var showAdjustServings by remember { mutableStateOf(false) }
+    var adjustedServings by remember(recipeId) { mutableStateOf<Int?>(null) }
 
     Box(
         modifier
@@ -138,8 +147,10 @@ public fun RecipeDetailScreen(
                             recipeId = recipeId,
                             item = item,
                             totalMinutes = totalMinutes,
+                            adjustedServings = adjustedServings,
                             onCook = { onCook(item.id) },
                             onEdit = { onEdit(item.id) },
+                            onAdjustServings = { showAdjustServings = true },
                             twoColumnRecipeBody = false,
                         )
                     }
@@ -172,13 +183,33 @@ public fun RecipeDetailScreen(
                                 recipeId = recipeId,
                                 item = item,
                                 totalMinutes = totalMinutes,
+                                adjustedServings = adjustedServings,
                                 onCook = { onCook(item.id) },
                                 onEdit = { onEdit(item.id) },
+                                onAdjustServings = { showAdjustServings = true },
                                 twoColumnRecipeBody = true,
                             )
                         }
                     }
                 }
+            }
+
+            if (showAdjustServings) {
+                val baseServings = item.servings ?: 1
+                ServingsAdjustDialog(
+                    baseServings = baseServings,
+                    hasOriginalServings = item.servings != null,
+                    currentTarget = adjustedServings,
+                    onDismiss = { showAdjustServings = false },
+                    onApply = { target ->
+                        adjustedServings = if (target == baseServings) null else target
+                        showAdjustServings = false
+                    },
+                    onReset = {
+                        adjustedServings = null
+                        showAdjustServings = false
+                    },
+                )
             }
 
             if (showDeleteConfirm) {
@@ -282,11 +313,20 @@ private fun RecipeDetailContent(
     recipeId: String,
     item: Recipe,
     totalMinutes: Int?,
+    adjustedServings: Int?,
     onCook: () -> Unit,
     onEdit: () -> Unit,
+    onAdjustServings: () -> Unit,
     twoColumnRecipeBody: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val baseServings = item.servings ?: 1
+    val displayServings = adjustedServings ?: item.servings
+    val displayIngredients = if (adjustedServings != null) {
+        IngredientScaler.scaleIngredients(item.ingredients, baseServings, adjustedServings)
+    } else {
+        item.ingredients
+    }
     Column(
         modifier.then(
             if (twoColumnRecipeBody) Modifier else Modifier.padding(horizontal = BasilSpacing.xxl),
@@ -310,9 +350,10 @@ private fun RecipeDetailContent(
             hostFromUrl(item.sourceUrl)?.let { host ->
                 Text(host, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            item.servings?.let { servings ->
+            displayServings?.let { servings ->
                 Text("·", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outlineVariant)
-                Text("$servings servings", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val servingsLabel = if (adjustedServings != null) "$servings servings (adjusted)" else "$servings servings"
+                Text(servingsLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Spacer(Modifier.height(BasilSpacing.lg))
@@ -322,7 +363,7 @@ private fun RecipeDetailContent(
             horizontalArrangement = Arrangement.spacedBy(BasilSpacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            item.servings?.let {
+            displayServings?.let {
                 DetailStat(icon = BasilIcons.Account, value = "$it")
             }
             item.prepMinutes?.let {
@@ -346,10 +387,19 @@ private fun RecipeDetailContent(
                 label = "Cook",
                 onClick = onCook,
             )
+            if (item.ingredients.isNotEmpty()) {
+                DetailAction(
+                    assetIcon = BasilAssetIcons.Adjust,
+                    label = "Adjust",
+                    onClick = onAdjustServings,
+                    iconSize = 24.dp,
+                )
+            }
             DetailAction(
-                icon = BasilIcons.Adjust,
-                label = "Adjust",
+                assetIcon = BasilAssetIcons.Edit,
+                label = "Edit",
                 onClick = onEdit,
+                iconSize = 22.dp,
             )
         }
 
@@ -371,14 +421,14 @@ private fun RecipeDetailContent(
             Spacer(Modifier.height(BasilSpacing.lg))
         }
 
-        if (twoColumnRecipeBody && item.ingredients.isNotEmpty() && item.steps.isNotEmpty()) {
+        if (twoColumnRecipeBody && displayIngredients.isNotEmpty() && item.steps.isNotEmpty()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(BasilSpacing.xxxl),
                 verticalAlignment = Alignment.Top,
             ) {
                 RecipeDetailIngredientsSection(
-                    ingredients = item.ingredients,
+                    ingredients = displayIngredients,
                     modifier = Modifier.weight(1f),
                 )
                 RecipeDetailStepsSection(
@@ -387,11 +437,11 @@ private fun RecipeDetailContent(
                 )
             }
         } else {
-            if (item.ingredients.isNotEmpty()) {
-                RecipeDetailIngredientsSection(ingredients = item.ingredients)
+            if (displayIngredients.isNotEmpty()) {
+                RecipeDetailIngredientsSection(ingredients = displayIngredients)
             }
             if (item.steps.isNotEmpty()) {
-                if (item.ingredients.isNotEmpty()) {
+                if (displayIngredients.isNotEmpty()) {
                     Spacer(Modifier.height(BasilSpacing.xl))
                 }
                 RecipeDetailStepsSection(steps = item.steps)
@@ -399,6 +449,77 @@ private fun RecipeDetailContent(
         }
 
         Spacer(Modifier.height(BasilSpacing.xxxl))
+    }
+}
+
+@Composable
+private fun ServingsAdjustDialog(
+    baseServings: Int,
+    hasOriginalServings: Boolean,
+    currentTarget: Int?,
+    onDismiss: () -> Unit,
+    onApply: (Int) -> Unit,
+    onReset: () -> Unit,
+) {
+    var input by remember(currentTarget, baseServings) {
+        mutableStateOf((currentTarget ?: baseServings).toString())
+    }
+    val target = input.toIntOrNull()
+    val canApply = target != null && target > 0
+
+    BasilAlertDialog(
+        onDismissRequest = onDismiss,
+        title = "Adjust servings",
+        dismissButton = {
+            if (currentTarget != null) {
+                DialogActionButton(
+                    text = "Reset",
+                    onClick = onReset,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            DialogActionButton(text = "Cancel", onClick = onDismiss)
+        },
+        confirmButton = {
+            DialogActionButton(
+                text = "Apply",
+                onClick = { target?.takeIf { it > 0 }?.let(onApply) },
+                color = if (canApply) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+    ) {
+        Text(
+            if (hasOriginalServings) {
+                "This recipe serves $baseServings. How many do you want to make?"
+            } else {
+                "Enter how many servings you want to make. We'll scale ingredient amounts from a single serving."
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(BasilSpacing.lg))
+        BasicTextField(
+            value = input,
+            onValueChange = { input = it.filter { ch -> ch.isDigit() } },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(BasilRadii.field))
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = BasilSpacing.md, vertical = BasilSpacing.md),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            decorationBox = { inner ->
+                if (input.isBlank()) {
+                    Text(
+                        "Servings",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                inner()
+            },
+        )
     }
 }
 

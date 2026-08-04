@@ -12,3 +12,5 @@ public actual fun createPlatformHttpClient(): HttpClient = HttpClient(Js) {
         json(Json { ignoreUnknownKeys = true })
     }
 }
+
+public actual fun createBasilImageHttpClient(): HttpClient = HttpClient(Js)
