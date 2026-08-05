@@ -2,6 +2,7 @@ package com.joetr.basil.network
 
 import com.joetr.basil.platform.BasilConfig
 import com.joetr.basil.platform.currentTimeMillis
+import com.joetr.basil.platform.isNetworkAvailable
 import io.ktor.client.HttpClient
 
 public class BasilFirebase(
@@ -35,7 +36,10 @@ public class BasilFirebase(
             return null
         }
         if (session.expiresAtEpochMs - currentTimeMillis() > 60_000L) return session
-        return refreshSession(session)
+        if (!isNetworkAvailable()) return session
+        return runCatching { refreshSession(session) }.getOrElse { error ->
+            if (error.isNetworkConnectivityError()) session else throw error
+        }
     }
 
     /** Returns a non-expired session with a usable id token for backend API calls. */

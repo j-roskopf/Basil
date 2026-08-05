@@ -11,6 +11,7 @@ import com.joetr.basil.domain.model.SyncState
 import com.joetr.basil.domain.model.SyncStatus
 import com.joetr.basil.network.BasilFirebase
 import com.joetr.basil.platform.currentTimeMillis
+import com.joetr.basil.platform.isNetworkAvailable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -111,6 +112,10 @@ public class RecipeSyncService(
 
     private suspend fun runSync(options: RecipeSyncOptions) {
         if (!firebase.isConfigured) return
+        if (!isNetworkAvailable()) {
+            refreshState()
+            return
+        }
         syncMutex.withLock {
             withContext(Dispatchers.Default) {
                 if (firebase.currentIdToken().isNullOrBlank()) {

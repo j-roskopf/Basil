@@ -11,6 +11,8 @@ import com.joetr.basil.network.FirestoreRecipeDocument
 import com.joetr.basil.network.firestoreErrorDetail
 import com.joetr.basil.network.isFirestoreNotFound
 import com.joetr.basil.network.isFirestoreUnauthenticated
+import com.joetr.basil.network.isNetworkConnectivityError
+import com.joetr.basil.platform.isNetworkAvailable
 import com.joetr.basil.db.Recipes
 import com.joetr.basil.network.remoteRecipeJson
 import com.joetr.basil.platform.currentTimeMillis
@@ -27,7 +29,11 @@ internal class FirebaseRecipeSyncBackend(
         val session = firebase.sessionForSync() ?: return RecipeSyncRunResult(0, 0, 0)
         return runCatching { syncWithSession(session, options) }.getOrElse { error ->
             if (!error.isFirestoreUnauthenticated()) throw error
-            val refreshed = firebase.refreshSession(session)
+            if (!isNetworkAvailable()) throw error
+            val refreshed = runCatching { firebase.refreshSession(session) }.getOrElse { refreshError ->
+                if (refreshError.isNetworkConnectivityError()) throw error
+                throw refreshError
+            }
             syncWithSession(refreshed, options)
         }
     }
