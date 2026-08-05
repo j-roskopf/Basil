@@ -11,6 +11,7 @@ import com.joetr.basil.network.AuthTokenProvider
 import com.joetr.basil.network.BasilFirebase
 import com.joetr.basil.network.FirebaseSession
 import com.joetr.basil.network.FirebaseSessionStore
+import com.joetr.basil.network.isNetworkConnectivityError
 import com.joetr.basil.platform.currentTimeMillis
 import com.joetr.basil.platform.isNetworkAvailable
 import dev.zacsweers.metro.AppScope
@@ -76,10 +77,14 @@ public class DefaultSessionRepository(
         }
 
         val stored = if (persisted != null && !persisted.isAnonymous) null else persisted
-        val active: FirebaseSession = if (stored == null) {
+        val active: FirebaseSession? = if (stored == null) {
             signInAnonymously()
         } else {
             resolveStoredSession(stored) ?: signInAnonymously()
+        }
+        if (active == null) {
+            promoteStoredFirebaseSession()
+            return
         }
 
         withContext(Dispatchers.Default) {
@@ -161,11 +166,14 @@ public class DefaultSessionRepository(
 
     internal fun currentToken(): String? = firebase.peekIdToken()
 
-    private suspend fun signInAnonymously(): FirebaseSession {
-        val anon = runFirebaseAuthCall { firebase.auth.signInAnonymously() }
-        firebase.saveSession(anon)
-        return anon
-    }
+    private suspend fun signInAnonymously(): FirebaseSession? =
+        runCatching {
+            val anon = runFirebaseAuthCall { firebase.auth.signInAnonymously() }
+            firebase.saveSession(anon)
+            anon
+        }.getOrElse { error ->
+            if (error.isNetworkConnectivityError()) null else throw error
+        }
 
     private suspend fun resolveStoredSession(stored: FirebaseSession): FirebaseSession? {
         if (stored.idToken.isBlank() || stored.refreshToken.isBlank() || stored.localId.isBlank()) {
@@ -178,11 +186,13 @@ public class DefaultSessionRepository(
         return runCatching {
             runFirebaseAuthCall { firebase.refreshSession(stored) }
         }.getOrElse { error ->
-            if (isUnrecoverableSessionError(error)) {
-                firebase.saveSession(null)
-                null
-            } else {
-                throw error
+            when {
+                isUnrecoverableSessionError(error) -> {
+                    firebase.saveSession(null)
+                    null
+                }
+                error.isNetworkConnectivityError() -> stored
+                else -> throw error
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.joetr.basil.app
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -59,6 +60,7 @@ import com.joetr.basil.feature.scan.ScanScreen
 import com.joetr.basil.feature.scan.ScanViewModel
 import com.joetr.basil.feature.settings.AccountScreen
 import com.joetr.basil.feature.settings.SettingsViewModel
+import androidx.compose.material3.MaterialTheme
 import com.joetr.basil.ui.theme.BasilTheme
 import com.joetr.basil.updates.AppUpdateService
 import com.joetr.basil.updates.AppUpdateState
@@ -388,32 +390,41 @@ class MainScreensDesktopTest {
         waitForImages: Boolean = false,
         content: @Composable () -> Unit,
     ) {
-        viewports.forEach { viewport ->
-            runDesktopComposeUiTest(width = viewport.width, height = viewport.height) {
-                setContent {
-                    setSingletonImageLoaderFactory { context ->
-                        ImageLoader.Builder(context).build()
-                    }
-                    BasilTheme(darkTheme = false) {
-                        Box(Modifier.fillMaxSize()) {
-                            content()
+        listOf(false, true).forEach { darkTheme ->
+            val themeLabel = if (darkTheme) "dark" else "light"
+            viewports.forEach { viewport ->
+                runDesktopComposeUiTest(width = viewport.width, height = viewport.height) {
+                    setContent {
+                        setSingletonImageLoaderFactory { context ->
+                            ImageLoader.Builder(context).build()
+                        }
+                        BasilTheme(darkTheme = darkTheme) {
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.background),
+                            ) {
+                                content()
+                            }
                         }
                     }
-                }
-                waitForIdle()
-                if (awaitText != null) {
-                    waitUntil(timeoutMillis = 5_000) {
-                        onAllNodesWithText(awaitText, substring = true)
-                            .fetchSemanticsNodes()
-                            .isNotEmpty()
-                    }
-                }
-                if (waitForImages) {
-                    // Give Coil time to decode local food fixtures into AsyncImage.
-                    delay(750)
                     waitForIdle()
+                    if (awaitText != null) {
+                        waitUntil(timeoutMillis = 5_000) {
+                            onAllNodesWithText(awaitText, substring = true)
+                                .fetchSemanticsNodes()
+                                .isNotEmpty()
+                        }
+                    }
+                    if (waitForImages) {
+                        // Give Coil time to decode local food fixtures into AsyncImage.
+                        delay(750)
+                        waitForIdle()
+                    }
+                    onRoot().captureRoboImage(
+                        roboDir.resolve("${screen}_${viewport.label}_$themeLabel.png").absolutePath,
+                    )
                 }
-                onRoot().captureRoboImage(roboDir.resolve("${screen}_${viewport.label}.png").absolutePath)
             }
         }
     }
