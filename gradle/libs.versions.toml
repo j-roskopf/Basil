@@ -17,6 +17,7 @@ sqldelight = "2.2.1"
 roborazzi = "1.60.0"
 metro = "1.2.0"
 lifecycle = "2.11.0-beta01"
+navigationEvent = "1.0.1"
 kotlinxBrowser = "0.5.0"
 atomicfu = "0.33.0"
 camerax = "1.4.2"
@@ -35,7 +36,7 @@ compose-components-resources = { module = "org.jetbrains.compose.components:comp
 compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose" }
 compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "compose" }
 compose-ui-test-junit4 = { module = "org.jetbrains.compose.ui:ui-test-junit4", version.ref = "compose" }
-compose-ui-backhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", version.ref = "compose" }
+compose-navigationevent = { module = "org.jetbrains.androidx.navigationevent:navigationevent-compose", version.ref = "navigationEvent" }
 jetbrains-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "multiplatform-nav3-ui" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 compose-compiler-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }

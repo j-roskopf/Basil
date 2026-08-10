@@ -27,7 +27,8 @@ public fun remoteImageUrlForPlatform(imageUrl: String): String {
     return "https://$region-$projectId.cloudfunctions.net/proxyImage?url=${encodeUrlParameter(imageUrl)}"
 }
 
-private fun encodeUrlParameter(value: String): String = buildString {
+/** Percent-encode a value for use in a URL query parameter. */
+public fun encodeUrlParameter(value: String): String = buildString {
     value.encodeToByteArray().forEach { byte ->
         val code = byte.toInt() and 0xff
         val safe =
@@ -43,6 +44,14 @@ private fun encodeUrlParameter(value: String): String = buildString {
         }
     }
 }
+
+/** Target product search for [query]. */
+public fun targetSearchUrl(query: String): String =
+    "https://www.target.com/s?searchTerm=${encodeUrlParameter(query)}"
+
+/** Hy-Vee Aisles Online search for [query]. */
+public fun hyVeeSearchUrl(query: String): String =
+    "https://www.hy-vee.com/aisles-online/search?search=${encodeUrlParameter(query)}"
 
 public expect fun currentTimeMillis(): Long
 

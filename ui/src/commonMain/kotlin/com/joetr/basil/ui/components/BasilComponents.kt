@@ -39,19 +39,26 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.DrawableResource
 import coil3.compose.AsyncImage
+import com.joetr.basil.platform.hyVeeSearchUrl
 import com.joetr.basil.platform.imageUrlForDisplay
+import com.joetr.basil.platform.openUrl
+import com.joetr.basil.platform.targetSearchUrl
 import com.joetr.basil.domain.model.SyncStatus
 import basil.ui.generated.resources.BasilAssetIcon
 import basil.ui.generated.resources.BasilAssetIcons
 import com.joetr.basil.ui.icons.BasilIcon
 import com.joetr.basil.ui.icons.BasilIconPainter
 import com.joetr.basil.ui.icons.BasilIcons
+import com.joetr.basil.ui.icons.HyVeeMark
+import com.joetr.basil.ui.icons.TargetMark
 import com.joetr.basil.ui.motion.sharedRecipeImage
 import com.joetr.basil.ui.motion.sharedRecipeTitle
 import com.joetr.basil.ui.theme.BasilColors
@@ -550,22 +557,70 @@ public fun CircularCheck(checked: Boolean, modifier: Modifier = Modifier) {
 @Composable
 public fun IngredientLine(text: String, modifier: Modifier = Modifier) {
     val (quantity, rest) = splitIngredient(text)
-    Text(
-        buildAnnotatedString {
-            if (quantity != null) {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)) {
-                    append(quantity)
+    val searchQuery = ingredientSearchQuery(text)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = BasilSpacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            buildAnnotatedString {
+                if (quantity != null) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)) {
+                        append(quantity)
+                    }
+                    append(" ")
+                    append(rest)
+                } else {
+                    append(text)
                 }
-                append(" ")
-                append(rest)
-            } else {
-                append(text)
+            },
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.width(BasilSpacing.sm))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(BasilSpacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StoreSearchButton(
+                contentDescription = "Search Target for $searchQuery",
+                onClick = { openUrl(targetSearchUrl(searchQuery)) },
+            ) {
+                TargetMark(size = 18.dp)
             }
-        },
-        modifier = modifier.padding(vertical = BasilSpacing.sm),
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurface,
-    )
+            StoreSearchButton(
+                contentDescription = "Search Hy-Vee for $searchQuery",
+                onClick = { openUrl(hyVeeSearchUrl(searchQuery)) },
+            ) {
+                HyVeeMark(size = 18.dp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreSearchButton(
+    contentDescription: String,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(RoundedCornerShape(BasilRadii.thumb))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .semantics { this.contentDescription = contentDescription },
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
 }
 
 @Composable
@@ -660,6 +715,36 @@ internal fun splitIngredient(raw: String): Pair<String?, String> {
     } else {
         null to raw
     }
+}
+
+private val leadingQuantityRegex = Regex(
+    pattern = """^(?:\d+(?:[./]\d+)?(?:\s*[-–]\s*\d+(?:[./]\d+)?)?|[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]+)\s*""",
+)
+
+private val leadingUnitRegex = Regex(
+    pattern = """^(?:pounds?|lbs?|ounces?|oz\.?|grams?|kilograms?|kgs?|milliliters?|liters?|mls?|""" +
+        """teaspoons?|tablespoons?|tsps?|tbsps?|tbs\.?|cups?|cans?|cloves?|pieces?|pcs?|""" +
+        """pinches?|dashes?|packages?|pkgs?|sticks?|bunches?|slices?|heads?|""" +
+        """quarts?|qts?|pints?|pts?|gallons?|gals?|fluid\s+ounces?|fl\.?\s*oz\.?|""" +
+        """kg|ml|tsp|tbsp|g|l)\.?\s+""",
+    option = RegexOption.IGNORE_CASE,
+)
+
+/** Ingredient name suitable for grocery search (drops quantities, units, and prep notes). */
+internal fun ingredientSearchQuery(raw: String, rest: String = splitIngredient(raw).second): String {
+    var query = rest.ifBlank { raw }.trim()
+    query = query.replace(Regex("""\([^)]*\)"""), " ")
+    query = query.substringBefore(',').trim()
+    // Keep stripping leading amounts/units so poorly split lines like "4" + "pounds butter"
+    // (or "pounds butter" alone) don't search with sizing words.
+    var previous: String
+    do {
+        previous = query
+        query = leadingQuantityRegex.replace(query, "").trim()
+        query = leadingUnitRegex.replace(query, "").trim()
+    } while (query != previous)
+    query = query.replace(Regex("""\s+"""), " ").trim()
+    return query.ifBlank { raw.trim() }
 }
 
 public fun hostFromUrl(url: String?): String? {

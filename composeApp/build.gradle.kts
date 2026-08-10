@@ -76,6 +76,14 @@ kotlin {
     }
 
     sourceSets {
+        all {
+            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            languageSettings.optIn("kotlinx.coroutines.FlowPreview")
+            languageSettings.optIn("coil3.annotation.ExperimentalCoilApi")
+        }
+        matching { it.name.contains("wasmJs", ignoreCase = true) }.configureEach {
+            languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
+        }
         commonMain.dependencies {
             implementation(project(":domain"))
             implementation(project(":navigation"))
@@ -97,7 +105,7 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.animation)
-            implementation(libs.compose.ui.backhandler)
+            implementation(libs.compose.navigationevent)
             implementation(libs.compose.material3)
             implementation(libs.compose.components.resources)
             implementation(libs.lifecycle.runtime.compose)

@@ -125,6 +125,14 @@ def main() -> None:
     resized_rgb(master, 192).save(web / "icon-192.png")
     resized_rgb(master, 512).save(web / "icon-512.png")
     resized_rgb(master, 32).save(ROOT / "composeApp/src/wasmJsMain/resources/favicon.png")
+    favicon_sizes = [16, 32, 48]
+    favicon_images = [resized_rgb(master, size).convert("RGBA") for size in favicon_sizes]
+    favicon_images[0].save(
+        ROOT / "composeApp/src/wasmJsMain/resources/favicon.ico",
+        format="ICO",
+        sizes=[(s, s) for s in favicon_sizes],
+        append_images=favicon_images[1:],
+    )
     desktop = ROOT / "composeApp/src/desktopMain/resources"
     desktop.mkdir(parents=True, exist_ok=True)
     resized_rgb(master, 256).save(desktop / "icon.png")
