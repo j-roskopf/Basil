@@ -65,4 +65,6 @@ public interface ImageRepository {
 public interface UserSettingsRepository {
     public fun observeThemeMode(): Flow<ThemeMode>
     public suspend fun setThemeMode(mode: ThemeMode)
+    public fun observeShowStoreSearchLinks(): Flow<Boolean>
+    public suspend fun setShowStoreSearchLinks(enabled: Boolean)
 }

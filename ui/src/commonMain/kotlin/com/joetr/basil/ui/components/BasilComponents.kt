@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -554,10 +555,14 @@ public fun CircularCheck(checked: Boolean, modifier: Modifier = Modifier) {
     }
 }
 
+/** When true, ingredient rows show Target / Hy-Vee grocery search marks. */
+public val LocalShowStoreSearchLinks = compositionLocalOf { false }
+
 @Composable
 public fun IngredientLine(text: String, modifier: Modifier = Modifier) {
     val (quantity, rest) = splitIngredient(text)
     val searchQuery = ingredientSearchQuery(text)
+    val showStoreSearchLinks = LocalShowStoreSearchLinks.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -580,22 +585,24 @@ public fun IngredientLine(text: String, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(Modifier.width(BasilSpacing.sm))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(BasilSpacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            StoreSearchButton(
-                contentDescription = "Search Target for $searchQuery",
-                onClick = { openUrl(targetSearchUrl(searchQuery)) },
+        if (showStoreSearchLinks) {
+            Spacer(Modifier.width(BasilSpacing.sm))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(BasilSpacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                TargetMark(size = 18.dp)
-            }
-            StoreSearchButton(
-                contentDescription = "Search Hy-Vee for $searchQuery",
-                onClick = { openUrl(hyVeeSearchUrl(searchQuery)) },
-            ) {
-                HyVeeMark(size = 18.dp)
+                StoreSearchButton(
+                    contentDescription = "Search Target for $searchQuery",
+                    onClick = { openUrl(targetSearchUrl(searchQuery)) },
+                ) {
+                    TargetMark(size = 18.dp)
+                }
+                StoreSearchButton(
+                    contentDescription = "Search Hy-Vee for $searchQuery",
+                    onClick = { openUrl(hyVeeSearchUrl(searchQuery)) },
+                ) {
+                    HyVeeMark(size = 18.dp)
+                }
             }
         }
     }

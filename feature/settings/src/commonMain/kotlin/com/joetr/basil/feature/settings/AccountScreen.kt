@@ -32,8 +32,10 @@ import com.joetr.basil.domain.model.SyncStatus
 import com.joetr.basil.domain.model.ThemeMode
 import com.joetr.basil.domain.repository.SyncRepository
 import com.joetr.basil.domain.usecase.ObserveSessionUseCase
+import com.joetr.basil.domain.usecase.ObserveShowStoreSearchLinksUseCase
 import com.joetr.basil.domain.usecase.ObserveSyncStateUseCase
 import com.joetr.basil.domain.usecase.ObserveThemeModeUseCase
+import com.joetr.basil.domain.usecase.SetShowStoreSearchLinksUseCase
 import com.joetr.basil.domain.usecase.SetThemeModeUseCase
 import com.joetr.basil.domain.usecase.SignOutUseCase
 import com.joetr.basil.platform.BasilBuildInfo
@@ -59,12 +61,15 @@ public class SettingsViewModel(
     private val syncRepository: SyncRepository,
     observeThemeMode: ObserveThemeModeUseCase,
     private val setThemeModeUseCase: SetThemeModeUseCase,
+    observeShowStoreSearchLinks: ObserveShowStoreSearchLinksUseCase,
+    private val setShowStoreSearchLinksUseCase: SetShowStoreSearchLinksUseCase,
     private val signOutUseCase: SignOutUseCase,
     public val updates: AppUpdateService,
 ) {
     public val session = observeSession()
     public val syncState = observeSyncState()
     public val themeMode = observeThemeMode()
+    public val showStoreSearchLinks = observeShowStoreSearchLinks()
 
     public suspend fun retrySync() = syncRepository.retryFailed()
 
@@ -73,6 +78,8 @@ public class SettingsViewModel(
     public suspend fun dropPendingSyncEntry(id: String) = syncRepository.dropPendingSyncEntry(id)
 
     public suspend fun setThemeMode(mode: ThemeMode) = setThemeModeUseCase(mode)
+
+    public suspend fun setShowStoreSearchLinks(enabled: Boolean) = setShowStoreSearchLinksUseCase(enabled)
 
     public suspend fun signOut() = signOutUseCase()
 }
@@ -86,6 +93,7 @@ public fun AccountScreen(
     val session by viewModel.session.collectAsState(initial = null)
     val sync by viewModel.syncState.collectAsState(initial = null)
     val themeMode by viewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val showStoreSearchLinks by viewModel.showStoreSearchLinks.collectAsState(initial = false)
     val updateState by viewModel.updates.state.collectAsState()
     val scope = rememberCoroutineScope()
     var showSignOutConfirm by remember { mutableStateOf(false) }
@@ -107,6 +115,34 @@ public fun AccountScreen(
                     onClick = { scope.launch { viewModel.setThemeMode(mode) } },
                 )
             }
+        }
+
+        SheetDivider(colors)
+
+        SheetSectionLabel("Store search", colors)
+        Spacer(Modifier.height(BasilSpacing.sm))
+        Text(
+            "Show Target and Hy-Vee logos next to ingredients",
+            style = MaterialTheme.typography.bodyLarge,
+            color = colors.mutedOnSheet,
+        )
+        Spacer(Modifier.height(BasilSpacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(BasilSpacing.sm),
+        ) {
+            SheetChip(
+                text = "Off",
+                selected = !showStoreSearchLinks,
+                colors = colors,
+                onClick = { scope.launch { viewModel.setShowStoreSearchLinks(false) } },
+            )
+            SheetChip(
+                text = "On",
+                selected = showStoreSearchLinks,
+                colors = colors,
+                onClick = { scope.launch { viewModel.setShowStoreSearchLinks(true) } },
+            )
         }
 
         SheetDivider(colors)

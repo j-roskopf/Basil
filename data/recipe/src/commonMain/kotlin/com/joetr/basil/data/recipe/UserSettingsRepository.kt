@@ -17,10 +17,12 @@ public class DefaultUserSettingsRepository(
     scope: CoroutineScope,
 ) : UserSettingsRepository {
     private val themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    private val showStoreSearchLinks = MutableStateFlow(false)
 
     init {
         scope.launch {
             themeMode.value = loadThemeMode()
+            showStoreSearchLinks.value = loadShowStoreSearchLinks()
         }
     }
 
@@ -33,11 +35,26 @@ public class DefaultUserSettingsRepository(
         themeMode.value = mode
     }
 
+    override fun observeShowStoreSearchLinks(): Flow<Boolean> = showStoreSearchLinks.asStateFlow()
+
+    override suspend fun setShowStoreSearchLinks(enabled: Boolean) {
+        withContext(Dispatchers.Default) {
+            database.recipesQueries.upsertSetting(SHOW_STORE_SEARCH_LINKS_KEY, enabled.toString())
+        }
+        showStoreSearchLinks.value = enabled
+    }
+
     private suspend fun loadThemeMode(): ThemeMode = withContext(Dispatchers.Default) {
         ThemeMode.fromStored(database.recipesQueries.selectSetting(THEME_MODE_KEY).awaitAsOneOrNull())
     }
 
+    private suspend fun loadShowStoreSearchLinks(): Boolean = withContext(Dispatchers.Default) {
+        database.recipesQueries.selectSetting(SHOW_STORE_SEARCH_LINKS_KEY).awaitAsOneOrNull()
+            .equals("true", ignoreCase = true)
+    }
+
     private companion object {
         const val THEME_MODE_KEY = "theme_mode"
+        const val SHOW_STORE_SEARCH_LINKS_KEY = "show_store_search_links"
     }
 }

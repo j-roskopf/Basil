@@ -48,6 +48,7 @@ import com.joetr.basil.navigation.RecipesKey
 import com.joetr.basil.domain.model.SessionState
 import com.joetr.basil.domain.model.ThemeMode
 import com.joetr.basil.navigation.TopLevelDestination
+import com.joetr.basil.ui.components.LocalShowStoreSearchLinks
 import com.joetr.basil.navigation.AdaptiveScaffold
 import com.joetr.basil.navigation.toEditorJson
 import com.joetr.basil.platform.ImageCapture
@@ -90,6 +91,7 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
     }
 
     val themeMode by graph.settingsViewModel.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val showStoreSearchLinks by graph.settingsViewModel.showStoreSearchLinks.collectAsState(initial = false)
     val systemDark = isSystemInDarkTheme()
     val darkTheme = when (themeMode) {
         ThemeMode.SYSTEM -> systemDark
@@ -97,7 +99,8 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
         ThemeMode.DARK -> true
     }
 
-    BasilTheme(darkTheme = darkTheme) {
+    CompositionLocalProvider(LocalShowStoreSearchLinks provides showStoreSearchLinks) {
+        BasilTheme(darkTheme = darkTheme) {
         var topLevel by remember { mutableStateOf<TopLevelDestination>(TopLevelDestination.Recipes) }
         val backStack = remember {
             mutableStateListOf<Any>(
@@ -263,5 +266,6 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
                 onConfirm = { graph.updates.respondToInstallConfirmation(true) },
             )
         }
+    }
     }
 }
