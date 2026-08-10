@@ -72,6 +72,9 @@ internal fun Project.configureBasilKmp(
                 languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
                 languageSettings.optIn("kotlinx.coroutines.FlowPreview")
             }
+            matching { it.name.contains("wasmJs", ignoreCase = true) }.configureEach {
+                languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
+            }
             named("commonTest") {
                 dependencies {
                     implementation(kotlin("test"))

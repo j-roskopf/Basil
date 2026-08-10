@@ -8,7 +8,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,9 +17,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.MaterialTheme
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.ktor3.KtorNetworkFetcherFactory
@@ -78,7 +79,7 @@ private fun recipeShellState(
     return RecipeShellState.Scaffold
 }
 
-@OptIn(ExperimentalComposeUiApi::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 public fun App(graph: AppGraph, initialWebPath: String? = null) {
     setSingletonImageLoaderFactory { context ->
@@ -129,14 +130,19 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
                 is RecipeDetailKey, is ScanKey, is CookKey, is AuthKey, is EditorKey -> true
                 else -> widthDp >= 960 && selectedRecipeId != null
             }
-            BackHandler(enabled = canNavigateBack) {
-                when (currentKey) {
-                    is RecipeDetailKey, is ScanKey, is CookKey, is AuthKey, is EditorKey -> {
-                        backStack.removeLast()
+            val navigationEventState = rememberNavigationEventState(NavigationEventInfo.None)
+            NavigationBackHandler(
+                state = navigationEventState,
+                isBackEnabled = canNavigateBack,
+                onBackCompleted = {
+                    when (currentKey) {
+                        is RecipeDetailKey, is ScanKey, is CookKey, is AuthKey, is EditorKey -> {
+                            backStack.removeLast()
+                        }
+                        else -> selectedRecipeId = null
                     }
-                    else -> selectedRecipeId = null
-                }
-            }
+                },
+            )
             when (currentKey) {
                 is ScanKey -> ScanScreen(
                     viewModel = graph.scanViewModel,

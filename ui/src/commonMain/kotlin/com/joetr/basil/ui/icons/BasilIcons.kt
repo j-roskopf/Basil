@@ -44,6 +44,36 @@ public fun GoogleMark(
     basil.ui.generated.resources.GoogleMarkAsset(modifier = modifier, size = size)
 }
 
+private val TargetRed = Color(0xFFCC0000)
+
+/** Target bullseye mark for grocery search links. */
+@Composable
+public fun TargetMark(
+    modifier: Modifier = Modifier,
+    size: Dp = 18.dp,
+) {
+    Canvas(
+        modifier
+            .size(size)
+            .semantics { contentDescription = "Target" },
+    ) {
+        val c = Offset(this.size.width / 2f, this.size.height / 2f)
+        val r = this.size.minDimension / 2f
+        drawCircle(TargetRed, radius = r * 0.96f, center = c)
+        drawCircle(Color.White, radius = r * 0.62f, center = c)
+        drawCircle(TargetRed, radius = r * 0.30f, center = c)
+    }
+}
+
+/** Hy-Vee mark for grocery search links. */
+@Composable
+public fun HyVeeMark(
+    modifier: Modifier = Modifier,
+    size: Dp = 18.dp,
+) {
+    basil.ui.generated.resources.HyVeeMarkAsset(modifier = modifier, size = size)
+}
+
 /** The Basil leaf used in the launcher icon and brand moments. */
 @Composable
 public fun BasilAppMark(

@@ -4,7 +4,6 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
-import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.window
 
 private val resizeImageWebAsyncFn: (String, Int, Int, (String) -> Unit) -> Unit =
@@ -46,7 +45,7 @@ public actual class ImageCapture {
     }
 }
 
-@OptIn(ExperimentalEncodingApi::class, ExperimentalWasmJsInterop::class)
+@OptIn(ExperimentalEncodingApi::class)
 public actual suspend fun resizeImage(bytes: ByteArray, maxLongEdge: Int, quality: Int): ByteArray {
     if (bytes.isEmpty()) return bytes
     if (!isRecognizedImage(bytes)) return bytes
@@ -57,7 +56,6 @@ public actual suspend fun resizeImage(bytes: ByteArray, maxLongEdge: Int, qualit
     }.getOrElse { bytes }
 }
 
-@OptIn(ExperimentalWasmJsInterop::class)
 private suspend fun resizeImageWeb(base64: String, maxLongEdge: Int, quality: Int): String =
     suspendCoroutine { continuation ->
         resizeImageWebAsyncFn(base64, maxLongEdge, quality, continuation::resume)

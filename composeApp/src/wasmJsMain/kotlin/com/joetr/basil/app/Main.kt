@@ -8,9 +8,15 @@ import kotlinx.coroutines.launch
 
 import kotlinx.browser.window
 import kotlinx.coroutines.CancellationException
+import org.jetbrains.compose.resources.configureWebResources
 
 @OptIn(ExperimentalComposeUiApi::class)
 public fun main() {
+    // Compose resources default to "./$path" resolved against window.location.pathname.
+    // On deep SPA routes (e.g. /recipe/...), that 404s and painterResource stays blank.
+    configureWebResources {
+        resourcePathMapping { path -> "/$path" }
+    }
     MainScope().launch {
         try {
             val graph = createBasilAppGraph()

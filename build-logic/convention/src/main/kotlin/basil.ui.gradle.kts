@@ -6,6 +6,9 @@ plugins {
 
 kotlin {
     sourceSets {
+        all {
+            languageSettings.optIn("coil3.annotation.ExperimentalCoilApi")
+        }
         named("commonMain") {
             dependencies {
                 implementation(project(":domain"))
