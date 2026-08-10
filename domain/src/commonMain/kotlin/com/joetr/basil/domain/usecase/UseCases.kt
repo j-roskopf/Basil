@@ -267,6 +267,19 @@ public class SetThemeModeUseCase(
     public suspend operator fun invoke(mode: ThemeMode) = userSettingsRepository.setThemeMode(mode)
 }
 
+public class ObserveShowStoreSearchLinksUseCase(
+    private val userSettingsRepository: UserSettingsRepository,
+) {
+    public operator fun invoke(): Flow<Boolean> = userSettingsRepository.observeShowStoreSearchLinks()
+}
+
+public class SetShowStoreSearchLinksUseCase(
+    private val userSettingsRepository: UserSettingsRepository,
+) {
+    public suspend operator fun invoke(enabled: Boolean) =
+        userSettingsRepository.setShowStoreSearchLinks(enabled)
+}
+
 public class SignOutUseCase(
     private val sessionRepository: SessionRepository,
 ) {

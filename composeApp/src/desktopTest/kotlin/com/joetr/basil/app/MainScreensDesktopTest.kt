@@ -38,9 +38,11 @@ import com.joetr.basil.domain.usecase.ObserveRecipeUseCase
 import com.joetr.basil.domain.usecase.ObserveRecipesUseCase
 import com.joetr.basil.domain.usecase.ObserveSessionUseCase
 import com.joetr.basil.domain.usecase.ObserveSyncStateUseCase
+import com.joetr.basil.domain.usecase.ObserveShowStoreSearchLinksUseCase
 import com.joetr.basil.domain.usecase.ObserveThemeModeUseCase
 import com.joetr.basil.domain.usecase.SaveRecipeUseCase
 import com.joetr.basil.domain.usecase.ScanRecipeFromImageUseCase
+import com.joetr.basil.domain.usecase.SetShowStoreSearchLinksUseCase
 import com.joetr.basil.domain.usecase.SetThemeModeUseCase
 import com.joetr.basil.domain.usecase.SignOutUseCase
 import com.joetr.basil.domain.usecase.ToggleFavouriteUseCase
@@ -223,6 +225,8 @@ private val fakeAuthenticatedSessionRepository = object : SessionRepository by f
 private val fakeUserSettingsRepository = object : UserSettingsRepository {
     override fun observeThemeMode() = flowOf(ThemeMode.SYSTEM)
     override suspend fun setThemeMode(mode: ThemeMode) = Unit
+    override fun observeShowStoreSearchLinks() = flowOf(false)
+    override suspend fun setShowStoreSearchLinks(enabled: Boolean) = Unit
 }
 
 private val fakeSyncRepository = object : SyncRepository {
@@ -324,6 +328,8 @@ class MainScreensDesktopTest {
                 fakeSyncRepository,
                 ObserveThemeModeUseCase(fakeUserSettingsRepository),
                 SetThemeModeUseCase(fakeUserSettingsRepository),
+                ObserveShowStoreSearchLinksUseCase(fakeUserSettingsRepository),
+                SetShowStoreSearchLinksUseCase(fakeUserSettingsRepository),
                 SignOutUseCase(fakeAuthenticatedSessionRepository),
                 fakeUpdates,
             ),

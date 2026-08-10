@@ -21,9 +21,11 @@ import com.joetr.basil.domain.usecase.ObserveRecipeUseCase
 import com.joetr.basil.domain.usecase.ObserveRecipesUseCase
 import com.joetr.basil.domain.usecase.ObserveSessionUseCase
 import com.joetr.basil.domain.usecase.ObserveSyncStateUseCase
+import com.joetr.basil.domain.usecase.ObserveShowStoreSearchLinksUseCase
 import com.joetr.basil.domain.usecase.ObserveThemeModeUseCase
 import com.joetr.basil.domain.usecase.SaveRecipeUseCase
 import com.joetr.basil.domain.usecase.ScanRecipeFromImageUseCase
+import com.joetr.basil.domain.usecase.SetShowStoreSearchLinksUseCase
 import com.joetr.basil.domain.usecase.SetThemeModeUseCase
 import com.joetr.basil.domain.usecase.SignOutUseCase
 import com.joetr.basil.domain.usecase.ToggleFavouriteUseCase
@@ -130,6 +132,8 @@ public class AppGraph(
         syncRepository,
         ObserveThemeModeUseCase(userSettingsRepository),
         SetThemeModeUseCase(userSettingsRepository),
+        ObserveShowStoreSearchLinksUseCase(userSettingsRepository),
+        SetShowStoreSearchLinksUseCase(userSettingsRepository),
         SignOutUseCase(sessionRepository),
         updates,
     )
