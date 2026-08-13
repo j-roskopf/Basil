@@ -2,12 +2,7 @@ package com.joetr.basil.data.image
 
 import com.joetr.basil.domain.model.Recipe
 import com.joetr.basil.domain.repository.ImageRepository
-
-private const val FIREBASE_STORAGE_HOST = "firebasestorage.googleapis.com"
-
-/** True when the URL is already hosted in our Firebase Storage bucket. */
-public fun isFirebaseStorageImageUrl(imageUrl: String?): Boolean =
-    imageUrl?.contains(FIREBASE_STORAGE_HOST) == true
+import com.joetr.basil.platform.isFirebaseStorageImageUrl
 
 /**
  * Downloads a third-party image into local storage so [DefaultImageRepository.uploadPendingForRecipe]

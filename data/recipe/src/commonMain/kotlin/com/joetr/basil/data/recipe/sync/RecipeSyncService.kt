@@ -2,7 +2,7 @@ package com.joetr.basil.data.recipe.sync
 
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import com.joetr.basil.data.image.DefaultImageRepository
-import com.joetr.basil.data.image.isFirebaseStorageImageUrl
+import com.joetr.basil.platform.isFirebaseStorageImageUrl
 import com.joetr.basil.data.image.stageRemoteImageForUpload
 import com.joetr.basil.db.BasilDatabase
 import com.joetr.basil.domain.model.PendingSyncEntry
