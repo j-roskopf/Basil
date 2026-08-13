@@ -183,4 +183,4 @@ Paste into `ANDROID_KEYSTORE_BASE64`. Store password, alias, and key password in
 
 - Restrict the Firebase web API key in Google Cloud Console (HTTP referrers for web, app id for mobile).
 - `BASIL_GOOGLE_WEB_CLIENT_SECRET` is compiled into desktop and wasm binaries today. Plan to move token exchange server-side or switch web/desktop to PKCE before broad public launch, then rotate the secret.
-- `proxyImage` is a public HTTP endpoint with SSRF protections but no auth. The web client no longer routes images through it; it remains available for ad-hoc use. Monitor usage and add rate limits if abused.
+- `proxyImage` is a public HTTP endpoint with SSRF protections but no auth. The web client loads Firebase-hosted images directly (Storage CORS) and only routes third-party image URLs through `proxyImage`. Monitor usage and add rate limits if abused.

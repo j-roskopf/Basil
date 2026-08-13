@@ -12,15 +12,27 @@ public fun localStorageDirectoryName(): String = "basil"
 
 /**
  * Coil on web fetches image bytes through Ktor, so cross-origin hosts must opt into CORS.
- * Route remote recipe images through the proxyImage Cloud Function on web.
+ *
+ * Firebase Storage download URLs are loaded directly (bucket CORS allows basil.joetr.com).
+ * Other remote hosts still go through the proxyImage Cloud Function.
  */
 public fun imageUrlForDisplay(imageUrl: String?): String? =
     imageUrl?.let(::remoteImageUrlForPlatform)
+
+/** True when [imageUrl] is already hosted in Firebase Storage (CORS-enabled for web). */
+public fun isFirebaseStorageImageUrl(imageUrl: String?): Boolean {
+    if (imageUrl.isNullOrBlank()) return false
+    return imageUrl.contains("firebasestorage.googleapis.com") ||
+        imageUrl.contains(".firebasestorage.app/")
+}
 
 /** Same routing as [imageUrlForDisplay], for downloading remote images on web. */
 public fun remoteImageUrlForPlatform(imageUrl: String): String {
     if (platformName() != "web") return imageUrl
     if (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://")) return imageUrl
+    // Hosted recipe images already allow CORS — proxying them doubles latency and
+    // pays Cloud Function cold starts on every grid/detail load.
+    if (isFirebaseStorageImageUrl(imageUrl)) return imageUrl
     val projectId = BasilConfig.FIREBASE_PROJECT_ID
     if (projectId.isBlank()) return imageUrl
     val region = BasilConfig.FIREBASE_FUNCTIONS_REGION
