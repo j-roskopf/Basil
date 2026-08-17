@@ -49,6 +49,20 @@ public actual fun shareText(text: String) {
     shareTextWeb(text)
 }
 
+private val copyTextWeb: (String) -> Unit = js(
+    """
+    text => {
+        if (globalThis.navigator && globalThis.navigator.clipboard) {
+            globalThis.navigator.clipboard.writeText(text).catch(() => {});
+        }
+    }
+    """,
+)
+
+public actual fun copyText(text: String) {
+    copyTextWeb(text)
+}
+
 public actual fun keepScreenOn(enabled: Boolean) = Unit
 
 public actual fun hapticSuccess() = Unit

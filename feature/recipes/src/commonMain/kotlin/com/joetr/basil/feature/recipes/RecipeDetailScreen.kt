@@ -63,6 +63,7 @@ import com.joetr.basil.ui.motion.sharedRecipeImage
 import com.joetr.basil.ui.motion.sharedRecipeTitle
 import com.joetr.basil.ui.theme.BasilRadii
 import com.joetr.basil.ui.theme.BasilSpacing
+import com.joetr.basil.platform.copyText
 import com.joetr.basil.platform.shareText
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
@@ -602,16 +603,6 @@ private fun ShareRecipeDialog(
         dismissButton = {
             DialogActionButton(text = "Close", onClick = onDismiss)
         },
-        confirmButton = {
-            link?.let { sharedLink ->
-                DialogActionButton(
-                    text = "Share link",
-                    onClick = {
-                        shareText(RecipeShareTextFormatter.format(recipe, sharedLink.url))
-                    },
-                )
-            }
-        },
     ) {
         if (link == null) {
             Text(
@@ -649,9 +640,9 @@ private fun ShareRecipeDialog(
             )
             Spacer(Modifier.height(BasilSpacing.md))
             DialogActionItem(
-                text = "Share full recipe",
+                text = "Copy link",
                 onClick = {
-                    shareText(RecipeShareTextFormatter.format(recipe, link!!.url))
+                    copyText(link!!.url)
                 },
             )
             DialogActionItem(

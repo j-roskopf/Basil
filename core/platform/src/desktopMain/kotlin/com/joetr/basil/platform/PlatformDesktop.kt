@@ -14,10 +14,12 @@ public actual fun openUrl(url: String) {
     java.awt.Desktop.getDesktop().browse(java.net.URI(url))
 }
 
-public actual fun shareText(text: String) {
+public actual fun copyText(text: String) {
     val clipboard = java.awt.Toolkit.getDefaultToolkit().systemClipboard
     clipboard.setContents(java.awt.datatransfer.StringSelection(text), null)
 }
+
+public actual fun shareText(text: String) = copyText(text)
 
 public actual fun keepScreenOn(enabled: Boolean) = Unit
 

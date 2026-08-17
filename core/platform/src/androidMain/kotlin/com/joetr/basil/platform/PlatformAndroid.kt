@@ -38,6 +38,11 @@ public actual fun openUrl(url: String) {
     AndroidContextHolder.application.startActivity(intent)
 }
 
+public actual fun copyText(text: String) {
+    val clipboard = AndroidContextHolder.application.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("Basil share link", text))
+}
+
 public actual fun shareText(text: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"

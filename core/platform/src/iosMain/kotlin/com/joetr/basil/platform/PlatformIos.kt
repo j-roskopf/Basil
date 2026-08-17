@@ -21,6 +21,7 @@ import platform.UIKit.UIImage
 import platform.UIKit.UIImageJPEGRepresentation
 import platform.UIKit.UIImpactFeedbackGenerator
 import platform.UIKit.UIImpactFeedbackStyle
+import platform.UIKit.UIPasteboard
 import platform.posix.memcpy
 
 public actual fun currentTimeMillis(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
@@ -34,6 +35,10 @@ public actual fun openUrl(url: String) {
         options = emptyMap<Any?, Any?>(),
         completionHandler = null,
     )
+}
+
+public actual fun copyText(text: String) {
+    UIPasteboard.generalPasteboard.string = text
 }
 
 public actual fun shareText(text: String) {
