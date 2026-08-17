@@ -22,6 +22,10 @@ import com.joetr.basil.domain.repository.ImageRepository
 import com.joetr.basil.domain.repository.ImportHistoryEntry
 import com.joetr.basil.domain.repository.ImportRepository
 import com.joetr.basil.domain.repository.RecipeRepository
+import com.joetr.basil.domain.repository.SharedRecipeRepository
+import com.joetr.basil.domain.model.SharedRecipe
+import com.joetr.basil.domain.model.SharedRecipeLink
+import com.joetr.basil.network.BasilFirebase
 import com.joetr.basil.network.RecipeExtractor
 import com.joetr.basil.platform.currentTimeMillis
 import dev.zacsweers.metro.AppScope
@@ -154,6 +158,34 @@ public class DefaultRecipeRepository(
         }
         syncService?.syncNow()
         return merged
+    }
+}
+
+public class DefaultSharedRecipeRepository(
+    private val firebase: BasilFirebase,
+) : SharedRecipeRepository {
+    override suspend fun create(recipe: Recipe): SharedRecipeLink {
+        val session = firebase.currentSession()
+            ?: error("Sign in to create a share link.")
+        if (session.isAnonymous) {
+            error("Sign in to create a share link. You can still share the recipe as text.")
+        }
+        return firebase.functions.createSharedRecipe(session.idToken, recipe.id)
+    }
+
+    override suspend fun get(token: String): SharedRecipe {
+        require(token.matches(TOKEN_PATTERN)) { "Invalid share link." }
+        return firebase.functions.getSharedRecipe(token)
+    }
+
+    override suspend fun revoke(token: String) {
+        val session = firebase.currentSession()
+            ?: error("Sign in to manage share links.")
+        firebase.functions.revokeSharedRecipe(session.idToken, token)
+    }
+
+    private companion object {
+        val TOKEN_PATTERN = Regex("^[A-Za-z0-9_-]{20,80}$")
     }
 }
 

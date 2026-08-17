@@ -12,6 +12,7 @@ import com.joetr.basil.domain.repository.ImageRepository
 import com.joetr.basil.domain.repository.ImportRepository
 import com.joetr.basil.domain.repository.RecipeRepository
 import com.joetr.basil.domain.repository.SessionRepository
+import com.joetr.basil.domain.repository.SharedRecipeRepository
 import com.joetr.basil.domain.repository.SyncRepository
 import com.joetr.basil.domain.repository.UserSettingsRepository
 import com.joetr.basil.platform.currentTimeMillis
@@ -19,6 +20,57 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+public class CreateSharedRecipeUseCase(
+    private val repository: SharedRecipeRepository,
+) {
+    public suspend operator fun invoke(recipe: Recipe) = repository.create(recipe)
+}
+
+public class GetSharedRecipeUseCase(
+    private val repository: SharedRecipeRepository,
+) {
+    public suspend operator fun invoke(token: String) = repository.get(token)
+}
+
+public class RevokeSharedRecipeUseCase(
+    private val repository: SharedRecipeRepository,
+) {
+    public suspend operator fun invoke(token: String) = repository.revoke(token)
+}
+
+public class SaveSharedRecipeCopyUseCase(
+    private val saveRecipe: SaveRecipeUseCase,
+    private val observeSession: ObserveSessionUseCase,
+) {
+    @OptIn(ExperimentalUuidApi::class)
+    public suspend operator fun invoke(shared: com.joetr.basil.domain.model.SharedRecipe): Recipe {
+        val ownerId = when (val session = observeSession().first()) {
+            is SessionState.Authenticated -> session.userId
+            is SessionState.Anonymous -> session.userId
+            is SessionState.LocalPending -> session.deviceOwnerId
+        }
+        val now = currentTimeMillis()
+        val recipe = Recipe(
+            id = Uuid.random().toString(),
+            ownerId = ownerId,
+            title = shared.title,
+            description = shared.description,
+            imageUrl = shared.imageUrl,
+            sourceUrl = shared.sourceUrl,
+            servings = shared.servings,
+            prepMinutes = shared.prepMinutes,
+            cookMinutes = shared.cookMinutes,
+            ingredients = shared.ingredients,
+            steps = shared.steps,
+            tags = shared.tags,
+            createdAt = now,
+            updatedAt = 0L,
+        )
+        saveRecipe(recipe)
+        return recipe
+    }
+}
 
 public class ObserveImportHistoryUseCase(
     private val importRepository: ImportRepository,

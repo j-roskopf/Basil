@@ -3,12 +3,18 @@ import ComposeApp
 
 struct ContentView: View {
     @State private var pendingImportUrl: String?
+    @State private var pendingSharedToken: String?
 
     var body: some View {
-        ComposeView(pendingImportUrl: $pendingImportUrl)
+        ComposeView(
+            pendingImportUrl: $pendingImportUrl,
+            pendingSharedToken: $pendingSharedToken
+        )
             .ignoresSafeArea()
             .onOpenURL { url in
-                if let importUrl = Self.extractImportUrl(from: url) {
+                if let token = Self.extractSharedToken(from: url) {
+                    pendingSharedToken = token
+                } else if let importUrl = Self.extractImportUrl(from: url) {
                     pendingImportUrl = importUrl
                 }
             }
@@ -26,10 +32,19 @@ struct ContentView: View {
         }
         return nil
     }
+
+    private static func extractSharedToken(from url: URL) -> String? {
+        guard (url.scheme == "http" || url.scheme == "https"),
+              url.host == "basil.joetr.com" else { return nil }
+        let components = url.pathComponents
+        guard components.count >= 3, components[1] == "share" else { return nil }
+        return components[2]
+    }
 }
 
 struct ComposeView: UIViewControllerRepresentable {
     @Binding var pendingImportUrl: String?
+    @Binding var pendingSharedToken: String?
 
     func makeUIViewController(context: Context) -> UIViewController {
         MainViewControllerKt.MainViewController()
@@ -39,6 +54,10 @@ struct ComposeView: UIViewControllerRepresentable {
         if let url = pendingImportUrl {
             ShareIntentIosKt.setPendingShareUrl(url: url)
             pendingImportUrl = nil
+        }
+        if let token = pendingSharedToken {
+            ShareIntentIosKt.setPendingSharedRecipeToken(token: token)
+            pendingSharedToken = nil
         }
     }
 }

@@ -4,6 +4,8 @@ import com.joetr.basil.domain.model.ExtractedRecipe
 import com.joetr.basil.domain.model.Recipe
 import com.joetr.basil.domain.model.RecipeQuery
 import com.joetr.basil.domain.model.SessionState
+import com.joetr.basil.domain.model.SharedRecipe
+import com.joetr.basil.domain.model.SharedRecipeLink
 import com.joetr.basil.domain.model.SyncState
 import com.joetr.basil.domain.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +19,12 @@ public interface RecipeRepository {
     public suspend fun countByOwner(ownerId: String): Int
     public suspend fun getAllByOwner(ownerId: String): List<Recipe>
     public suspend fun mergeLocalIntoAccount(localOwnerId: String, accountOwnerId: String): Int
+}
+
+public interface SharedRecipeRepository {
+    public suspend fun create(recipe: Recipe): SharedRecipeLink
+    public suspend fun get(token: String): SharedRecipe
+    public suspend fun revoke(token: String)
 }
 
 public interface ImportRepository {

@@ -38,6 +38,16 @@ public actual fun openUrl(url: String) {
     AndroidContextHolder.application.startActivity(intent)
 }
 
+public actual fun shareText(text: String) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    val chooser = Intent.createChooser(intent, "Share recipe")
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    AndroidContextHolder.application.startActivity(chooser)
+}
+
 public actual fun keepScreenOn(enabled: Boolean) {
     val activity = AndroidContextHolder.activity ?: return
     if (enabled) {

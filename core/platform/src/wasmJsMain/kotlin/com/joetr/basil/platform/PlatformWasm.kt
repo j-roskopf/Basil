@@ -33,6 +33,22 @@ public actual fun openUrl(url: String) {
     window.open(url, "_blank")
 }
 
+private val shareTextWeb: (String) -> Unit = js(
+    """
+    text => {
+        if (globalThis.navigator && typeof globalThis.navigator.share === 'function') {
+            globalThis.navigator.share({ title: 'Basil recipe', text }).catch(() => {});
+        } else if (globalThis.navigator && globalThis.navigator.clipboard) {
+            globalThis.navigator.clipboard.writeText(text);
+        }
+    }
+    """,
+)
+
+public actual fun shareText(text: String) {
+    shareTextWeb(text)
+}
+
 public actual fun keepScreenOn(enabled: Boolean) = Unit
 
 public actual fun hapticSuccess() = Unit

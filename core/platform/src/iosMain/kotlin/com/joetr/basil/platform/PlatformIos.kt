@@ -16,6 +16,7 @@ import platform.UIKit.UIGraphicsBeginImageContextWithOptions
 import platform.UIKit.UIGraphicsEndImageContext
 import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
 import platform.UIKit.UIApplication
+import platform.UIKit.UIActivityViewController
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageJPEGRepresentation
 import platform.UIKit.UIImpactFeedbackGenerator
@@ -32,6 +33,15 @@ public actual fun openUrl(url: String) {
         nsUrl,
         options = emptyMap<Any?, Any?>(),
         completionHandler = null,
+    )
+}
+
+public actual fun shareText(text: String) {
+    val controller = UIActivityViewController(activityItems = listOf(text), applicationActivities = null)
+    UIApplication.sharedApplication.keyWindow?.rootViewController?.presentViewController(
+        controller,
+        animated = true,
+        completion = null,
     )
 }
 

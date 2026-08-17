@@ -6,15 +6,18 @@ import com.joetr.basil.data.image.DefaultImageRepository
 import com.joetr.basil.data.recipe.DefaultUserSettingsRepository
 import com.joetr.basil.data.recipe.DefaultImportRepository
 import com.joetr.basil.data.recipe.DefaultRecipeRepository
+import com.joetr.basil.data.recipe.DefaultSharedRecipeRepository
 import com.joetr.basil.data.recipe.DefaultSyncRepository
 import com.joetr.basil.data.recipe.sync.ImageUploadWorker
 import com.joetr.basil.data.recipe.sync.RecipeSyncService
 import com.joetr.basil.database.BasilDataLayer
 import com.joetr.basil.domain.usecase.DeleteRecipeUseCase
+import com.joetr.basil.domain.usecase.CreateSharedRecipeUseCase
 import com.joetr.basil.domain.usecase.ExportRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportBasilRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportMelaRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportRecipeFromUrlUseCase
+import com.joetr.basil.domain.usecase.GetSharedRecipeUseCase
 import com.joetr.basil.domain.usecase.MergeLocalIntoAccountUseCase
 import com.joetr.basil.domain.usecase.ObserveImportHistoryUseCase
 import com.joetr.basil.domain.usecase.ObserveRecipeUseCase
@@ -24,7 +27,9 @@ import com.joetr.basil.domain.usecase.ObserveSyncStateUseCase
 import com.joetr.basil.domain.usecase.ObserveShowStoreSearchLinksUseCase
 import com.joetr.basil.domain.usecase.ObserveThemeModeUseCase
 import com.joetr.basil.domain.usecase.SaveRecipeUseCase
+import com.joetr.basil.domain.usecase.SaveSharedRecipeCopyUseCase
 import com.joetr.basil.domain.usecase.ScanRecipeFromImageUseCase
+import com.joetr.basil.domain.usecase.RevokeSharedRecipeUseCase
 import com.joetr.basil.domain.usecase.SetShowStoreSearchLinksUseCase
 import com.joetr.basil.domain.usecase.SetThemeModeUseCase
 import com.joetr.basil.domain.usecase.SignOutUseCase
@@ -35,6 +40,7 @@ import com.joetr.basil.feature.editor.EditorViewModel
 import com.joetr.basil.feature.import.ImportViewModel
 import com.joetr.basil.feature.recipes.RecipeDetailViewModel
 import com.joetr.basil.feature.recipes.RecipesViewModel
+import com.joetr.basil.feature.recipes.SharedRecipeViewModel
 import com.joetr.basil.feature.scan.ScanViewModel
 import com.joetr.basil.feature.settings.SettingsViewModel
 import com.joetr.basil.network.BasilFirebase
@@ -61,6 +67,7 @@ public class AppGraph(
     private val imageRepository = DefaultImageRepository(dataLayer.database, imageHttpClient, firebase)
     private val syncService = RecipeSyncService(dataLayer.database, firebase, imageRepository, scope)
     private val recipeRepository = DefaultRecipeRepository(dataLayer.database, syncService, imageRepository)
+    private val sharedRecipeRepository = DefaultSharedRecipeRepository(firebase)
     private val syncRepository = DefaultSyncRepository(syncService)
     private val sessionRepository = DefaultSessionRepository(
         dataLayer.database,
@@ -68,6 +75,10 @@ public class AppGraph(
         firebase,
         syncRepository,
     )
+    private val saveRecipeUseCase = SaveRecipeUseCase(recipeRepository)
+    private val createSharedRecipeUseCase = CreateSharedRecipeUseCase(sharedRecipeRepository)
+    private val getSharedRecipeUseCase = GetSharedRecipeUseCase(sharedRecipeRepository)
+    private val revokeSharedRecipeUseCase = RevokeSharedRecipeUseCase(sharedRecipeRepository)
     private val recipeExtractor = RecipeExtractor(firebase)
     private val importRepository = DefaultImportRepository(dataLayer.database, recipeExtractor)
     public val imageRepositoryPublic: DefaultImageRepository get() = imageRepository
@@ -103,6 +114,15 @@ public class AppGraph(
         observeRecipe = ObserveRecipeUseCase(recipeRepository),
         deleteRecipe = DeleteRecipeUseCase(recipeRepository),
         toggleFavouriteUseCase = ToggleFavouriteUseCase(recipeRepository),
+        createSharedRecipe = createSharedRecipeUseCase,
+        revokeSharedRecipe = revokeSharedRecipeUseCase,
+    )
+    public val sharedRecipeViewModel: SharedRecipeViewModel = SharedRecipeViewModel(
+        getSharedRecipe = getSharedRecipeUseCase,
+        saveSharedRecipeCopy = SaveSharedRecipeCopyUseCase(
+            saveRecipe = saveRecipeUseCase,
+            observeSession = ObserveSessionUseCase(sessionRepository),
+        ),
     )
     public val importViewModel: ImportViewModel = ImportViewModel(
         ImportRecipeFromUrlUseCase(importRepository),
@@ -112,7 +132,7 @@ public class AppGraph(
         ObserveImportHistoryUseCase(importRepository),
     )
     public val editorViewModel: EditorViewModel = EditorViewModel(
-        saveRecipe = SaveRecipeUseCase(recipeRepository),
+        saveRecipe = saveRecipeUseCase,
         observeSession = ObserveSessionUseCase(sessionRepository),
         observeRecipe = ObserveRecipeUseCase(recipeRepository),
         imageRepository = imageRepository,

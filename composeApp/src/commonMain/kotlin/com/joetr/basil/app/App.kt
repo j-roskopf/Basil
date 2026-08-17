@@ -33,6 +33,7 @@ import com.joetr.basil.feature.editor.EditorScreen
 import com.joetr.basil.feature.import.ImportScreen
 import com.joetr.basil.feature.recipes.RecipeDetailScreen
 import com.joetr.basil.feature.recipes.RecipesTabContent
+import com.joetr.basil.feature.recipes.SharedRecipeScreen
 import com.joetr.basil.feature.settings.AccountScreen
 import com.joetr.basil.feature.settings.AppUpdateInstallDialog
 import com.joetr.basil.feature.scan.ScanScreen
@@ -43,6 +44,7 @@ import com.joetr.basil.navigation.CookKey
 import com.joetr.basil.navigation.EditorKey
 import com.joetr.basil.navigation.ImportKey
 import com.joetr.basil.navigation.RecipeDetailKey
+import com.joetr.basil.navigation.SharedRecipeKey
 import com.joetr.basil.navigation.ScanKey
 import com.joetr.basil.navigation.RecipesKey
 import com.joetr.basil.domain.model.SessionState
@@ -126,11 +128,21 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
             }
         }
 
+        LaunchedEffect(Unit) {
+            ShareIntentHolder.pendingSharedTokenFlow.collect { token ->
+                if (token == null) return@collect
+                ShareIntentHolder.pendingSharedToken = null
+                backStack.clear()
+                backStack += SharedRecipeKey(token)
+            }
+        }
+
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val widthDp = maxWidth.value.toInt()
             val currentKey = backStack.lastOrNull()
             val canNavigateBack = when (currentKey) {
                 is RecipeDetailKey, is ScanKey, is CookKey, is AuthKey, is EditorKey -> true
+                is SharedRecipeKey -> true
                 else -> widthDp >= 960 && selectedRecipeId != null
             }
             val navigationEventState = rememberNavigationEventState(NavigationEventInfo.None)
@@ -139,7 +151,7 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
                 isBackEnabled = canNavigateBack,
                 onBackCompleted = {
                     when (currentKey) {
-                        is RecipeDetailKey, is ScanKey, is CookKey, is AuthKey, is EditorKey -> {
+                        is RecipeDetailKey, is ScanKey, is CookKey, is AuthKey, is EditorKey, is SharedRecipeKey -> {
                             backStack.removeLast()
                         }
                         else -> selectedRecipeId = null
@@ -147,6 +159,11 @@ public fun App(graph: AppGraph, initialWebPath: String? = null) {
                 },
             )
             when (currentKey) {
+                is SharedRecipeKey -> SharedRecipeScreen(
+                    viewModel = graph.sharedRecipeViewModel,
+                    token = currentKey.token,
+                    onBack = { backStack.removeLast() },
+                )
                 is ScanKey -> ScanScreen(
                     viewModel = graph.scanViewModel,
                     onExtracted = { json -> backStack += EditorKey(extractedJson = json) },

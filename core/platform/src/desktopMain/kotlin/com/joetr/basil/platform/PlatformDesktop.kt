@@ -14,6 +14,11 @@ public actual fun openUrl(url: String) {
     java.awt.Desktop.getDesktop().browse(java.net.URI(url))
 }
 
+public actual fun shareText(text: String) {
+    val clipboard = java.awt.Toolkit.getDefaultToolkit().systemClipboard
+    clipboard.setContents(java.awt.datatransfer.StringSelection(text), null)
+}
+
 public actual fun keepScreenOn(enabled: Boolean) = Unit
 
 public actual fun hapticSuccess() = Unit

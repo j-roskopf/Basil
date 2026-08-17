@@ -6,5 +6,9 @@
     <array>
         <string>group.com.joetr.basil</string>
     </array>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>applinks:basil.joetr.com</string>
+    </array>
 </dict>
 </plist>

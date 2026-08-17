@@ -29,6 +29,28 @@ public data class Recipe(
     val deleted: Boolean = false,
 )
 
+@Serializable
+public data class SharedRecipeLink(
+    val token: String,
+    val url: String,
+)
+
+@Serializable
+public data class SharedRecipe(
+    val token: String,
+    val url: String,
+    val title: String,
+    val description: String? = null,
+    val imageUrl: String? = null,
+    val sourceUrl: String? = null,
+    val servings: Int? = null,
+    val prepMinutes: Int? = null,
+    val cookMinutes: Int? = null,
+    val ingredients: List<String> = emptyList(),
+    val steps: List<RecipeStep> = emptyList(),
+    val tags: List<String> = emptyList(),
+)
+
 public enum class RecipeSource {
     MANUAL,
     IMPORT,

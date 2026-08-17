@@ -17,6 +17,8 @@ import com.joetr.basil.domain.model.Recipe
 import com.joetr.basil.domain.model.RecipeQuery
 import com.joetr.basil.domain.model.RecipeStep
 import com.joetr.basil.domain.model.SessionState
+import com.joetr.basil.domain.model.SharedRecipe
+import com.joetr.basil.domain.model.SharedRecipeLink
 import com.joetr.basil.domain.model.SyncState
 import com.joetr.basil.domain.model.SyncStatus
 import com.joetr.basil.domain.model.ThemeMode
@@ -25,9 +27,11 @@ import com.joetr.basil.domain.repository.ImportHistoryEntry
 import com.joetr.basil.domain.repository.ImportRepository
 import com.joetr.basil.domain.repository.RecipeRepository
 import com.joetr.basil.domain.repository.SessionRepository
+import com.joetr.basil.domain.repository.SharedRecipeRepository
 import com.joetr.basil.domain.repository.SyncRepository
 import com.joetr.basil.domain.repository.UserSettingsRepository
 import com.joetr.basil.domain.usecase.DeleteRecipeUseCase
+import com.joetr.basil.domain.usecase.CreateSharedRecipeUseCase
 import com.joetr.basil.domain.usecase.ExportRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportBasilRecipesUseCase
 import com.joetr.basil.domain.usecase.ImportMelaRecipesUseCase
@@ -38,6 +42,7 @@ import com.joetr.basil.domain.usecase.ObserveRecipeUseCase
 import com.joetr.basil.domain.usecase.ObserveRecipesUseCase
 import com.joetr.basil.domain.usecase.ObserveSessionUseCase
 import com.joetr.basil.domain.usecase.ObserveSyncStateUseCase
+import com.joetr.basil.domain.usecase.RevokeSharedRecipeUseCase
 import com.joetr.basil.domain.usecase.ObserveShowStoreSearchLinksUseCase
 import com.joetr.basil.domain.usecase.ObserveThemeModeUseCase
 import com.joetr.basil.domain.usecase.SaveRecipeUseCase
@@ -183,6 +188,16 @@ private val fakeRecipeRepository = object : RecipeRepository {
     override suspend fun mergeLocalIntoAccount(localOwnerId: String, accountOwnerId: String) = 0
 }
 
+private val fakeSharedRecipeRepository = object : SharedRecipeRepository {
+    override suspend fun create(recipe: Recipe) = SharedRecipeLink("share-token", "https://basil.joetr.com/share/share-token")
+    override suspend fun get(token: String) = SharedRecipe(
+        token = token,
+        url = "https://basil.joetr.com/share/$token",
+        title = sampleRecipe.title,
+    )
+    override suspend fun revoke(token: String) = Unit
+}
+
 private val fakeImportRepository = object : ImportRepository {
     override suspend fun extractFromUrl(url: String) = error("screenshot")
     override suspend fun extractFromOcrText(text: String) = error("screenshot")
@@ -299,6 +314,8 @@ class MainScreensDesktopTest {
                 ObserveRecipeUseCase(fakeRecipeRepository),
                 DeleteRecipeUseCase(fakeRecipeRepository),
                 ToggleFavouriteUseCase(fakeRecipeRepository),
+                CreateSharedRecipeUseCase(fakeSharedRecipeRepository),
+                RevokeSharedRecipeUseCase(fakeSharedRecipeRepository),
             ),
             recipeId = sampleRecipe.id,
             onBack = {},
