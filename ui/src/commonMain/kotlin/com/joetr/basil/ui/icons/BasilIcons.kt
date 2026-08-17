@@ -377,6 +377,19 @@ public object BasilIcons {
         }
     }
 
+    public val Share: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
+        with(scope) {
+            val top = Offset(size.width * 0.70f, size.height * 0.24f)
+            val left = Offset(size.width * 0.28f, size.height * 0.50f)
+            val bottom = Offset(size.width * 0.70f, size.height * 0.76f)
+            drawLine(tint, left, top, stroke.width, StrokeCap.Round)
+            drawLine(tint, left, bottom, stroke.width, StrokeCap.Round)
+            drawCircle(tint, radius = size.minDimension * 0.12f, center = top, style = stroke)
+            drawCircle(tint, radius = size.minDimension * 0.12f, center = left, style = stroke)
+            drawCircle(tint, radius = size.minDimension * 0.12f, center = bottom, style = stroke)
+        }
+    }
+
     public val Back: BasilIconPainter = BasilIconPainter { scope, tint, stroke ->
         with(scope) {
             val path = Path().apply {

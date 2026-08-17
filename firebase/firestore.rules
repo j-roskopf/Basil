@@ -11,6 +11,9 @@ service cloud.firestore {
     match /otpCodes/{email} {
       allow read, write: if false;
     }
+    match /sharedRecipes/{token} {
+      allow read, write: if false;
+    }
     match /mail/{document=**} {
       allow read, write: if false;
     }

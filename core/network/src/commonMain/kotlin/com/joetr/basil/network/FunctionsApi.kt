@@ -1,6 +1,8 @@
 package com.joetr.basil.network
 
 import com.joetr.basil.domain.model.ExtractedRecipe
+import com.joetr.basil.domain.model.SharedRecipe
+import com.joetr.basil.domain.model.SharedRecipeLink
 import com.joetr.basil.platform.BasilConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -43,6 +45,31 @@ public class FunctionsApi(
         return remoteRecipeJson.decodeFromJsonElement(VerifyEmailOtpResult.serializer(), result)
     }
 
+    public suspend fun createSharedRecipe(idToken: String, recipeId: String): SharedRecipeLink {
+        val result = call(
+            idToken,
+            "createSharedRecipe",
+            buildJsonObject { put("recipeId", recipeId) },
+        )
+        return remoteRecipeJson.decodeFromJsonElement(SharedRecipeLink.serializer(), result)
+    }
+
+    public suspend fun getSharedRecipe(token: String): SharedRecipe {
+        val result = callPublic(
+            "getSharedRecipe",
+            buildJsonObject { put("token", token) },
+        )
+        return remoteRecipeJson.decodeFromJsonElement(SharedRecipe.serializer(), result)
+    }
+
+    public suspend fun revokeSharedRecipe(idToken: String, token: String) {
+        call(
+            idToken,
+            "revokeSharedRecipe",
+            buildJsonObject { put("token", token) },
+        )
+    }
+
     private suspend fun call(idToken: String, name: String, data: JsonObject): JsonElement {
         val region = BasilConfig.FIREBASE_FUNCTIONS_REGION
         val projectId = BasilConfig.FIREBASE_PROJECT_ID
@@ -51,6 +78,18 @@ public class FunctionsApi(
         ) {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $idToken")
+            setBody(CallableRequest(data = data))
+        }.body()
+        return response.result
+    }
+
+    private suspend fun callPublic(name: String, data: JsonObject): JsonElement {
+        val region = BasilConfig.FIREBASE_FUNCTIONS_REGION
+        val projectId = BasilConfig.FIREBASE_PROJECT_ID
+        val response: CallableEnvelope = httpClient.post(
+            "https://$region-$projectId.cloudfunctions.net/$name",
+        ) {
+            contentType(ContentType.Application.Json)
             setBody(CallableRequest(data = data))
         }.body()
         return response.result

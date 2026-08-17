@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import com.joetr.basil.ui.components.BasilAlertDialog
 import com.joetr.basil.ui.components.BasilConfirmDialog
 import com.joetr.basil.ui.components.DialogActionButton
+import com.joetr.basil.ui.components.DialogActionItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -37,11 +38,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import com.joetr.basil.domain.model.Recipe
+import com.joetr.basil.domain.model.SharedRecipeLink
 import com.joetr.basil.domain.recipe.IngredientScaler
 import com.joetr.basil.domain.model.RecipeStep
 import com.joetr.basil.domain.usecase.DeleteRecipeUseCase
+import com.joetr.basil.domain.usecase.CreateSharedRecipeUseCase
 import com.joetr.basil.domain.usecase.ObserveRecipeUseCase
+import com.joetr.basil.domain.usecase.RevokeSharedRecipeUseCase
 import com.joetr.basil.domain.usecase.ToggleFavouriteUseCase
+import com.joetr.basil.domain.share.RecipeShareTextFormatter
 import com.joetr.basil.ui.components.CircleIconButton
 import com.joetr.basil.ui.components.DetailAction
 import com.joetr.basil.ui.components.DetailStat
@@ -58,6 +63,7 @@ import com.joetr.basil.ui.motion.sharedRecipeImage
 import com.joetr.basil.ui.motion.sharedRecipeTitle
 import com.joetr.basil.ui.theme.BasilRadii
 import com.joetr.basil.ui.theme.BasilSpacing
+import com.joetr.basil.platform.shareText
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -68,6 +74,8 @@ public class RecipeDetailViewModel(
     private val observeRecipe: ObserveRecipeUseCase,
     private val deleteRecipe: DeleteRecipeUseCase,
     private val toggleFavouriteUseCase: ToggleFavouriteUseCase,
+    private val createSharedRecipe: CreateSharedRecipeUseCase,
+    private val revokeSharedRecipe: RevokeSharedRecipeUseCase,
 ) {
     public fun recipe(id: String): Flow<Recipe> =
         observeRecipe(id).filterNotNull()
@@ -75,6 +83,10 @@ public class RecipeDetailViewModel(
     public suspend fun delete(id: String) = deleteRecipe(id)
 
     public suspend fun toggleFavourite(id: String) = toggleFavouriteUseCase(id)
+
+    public suspend fun createShareLink(recipe: Recipe): SharedRecipeLink = createSharedRecipe(recipe)
+
+    public suspend fun revokeShareLink(token: String) = revokeSharedRecipe(token)
 }
 
 @Composable
@@ -91,6 +103,7 @@ public fun RecipeDetailScreen(
     val scope = rememberCoroutineScope()
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
     var showFullscreenImage by remember { mutableStateOf(false) }
     var showAdjustServings by remember { mutableStateOf(false) }
     var adjustedServings by remember(recipeId) { mutableStateOf<Int?>(null) }
@@ -150,6 +163,7 @@ public fun RecipeDetailScreen(
                             adjustedServings = adjustedServings,
                             onCook = { onCook(item.id) },
                             onEdit = { onEdit(item.id) },
+                            onShare = { showShareDialog = true },
                             onAdjustServings = { showAdjustServings = true },
                             twoColumnRecipeBody = false,
                         )
@@ -186,6 +200,7 @@ public fun RecipeDetailScreen(
                                 adjustedServings = adjustedServings,
                                 onCook = { onCook(item.id) },
                                 onEdit = { onEdit(item.id) },
+                                onShare = { showShareDialog = true },
                                 onAdjustServings = { showAdjustServings = true },
                                 twoColumnRecipeBody = true,
                             )
@@ -226,6 +241,14 @@ public fun RecipeDetailScreen(
                         }
                     },
                     destructive = true,
+                )
+            }
+
+            if (showShareDialog) {
+                ShareRecipeDialog(
+                    recipe = item,
+                    viewModel = viewModel,
+                    onDismiss = { showShareDialog = false },
                 )
             }
         }
@@ -316,6 +339,7 @@ private fun RecipeDetailContent(
     adjustedServings: Int?,
     onCook: () -> Unit,
     onEdit: () -> Unit,
+    onShare: () -> Unit,
     onAdjustServings: () -> Unit,
     twoColumnRecipeBody: Boolean,
     modifier: Modifier = Modifier,
@@ -400,6 +424,11 @@ private fun RecipeDetailContent(
                 label = "Edit",
                 onClick = onEdit,
                 iconSize = 22.dp,
+            )
+            DetailAction(
+                icon = BasilIcons.Share,
+                label = "Share",
+                onClick = onShare,
             )
         }
 
@@ -551,6 +580,101 @@ private fun RecipeDetailStepsSection(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = BasilSpacing.sm),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ShareRecipeDialog(
+    recipe: Recipe,
+    viewModel: RecipeDetailViewModel,
+    onDismiss: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var link by remember(recipe.id) { mutableStateOf<SharedRecipeLink?>(null) }
+    var errorMessage by remember(recipe.id) { mutableStateOf<String?>(null) }
+    var isWorking by remember(recipe.id) { mutableStateOf(false) }
+
+    BasilAlertDialog(
+        onDismissRequest = onDismiss,
+        title = if (link == null) "Share recipe" else "Link ready",
+        dismissButton = {
+            DialogActionButton(text = "Close", onClick = onDismiss)
+        },
+        confirmButton = {
+            link?.let { sharedLink ->
+                DialogActionButton(
+                    text = "Share link",
+                    onClick = {
+                        shareText(RecipeShareTextFormatter.format(recipe, sharedLink.url))
+                    },
+                )
+            }
+        },
+    ) {
+        if (link == null) {
+            Text(
+                "Create a read-only link for anyone, or send the full recipe as text.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(BasilSpacing.md))
+            DialogActionItem(
+                text = if (isWorking) "Creating link…" else "Create share link",
+                onClick = {
+                    if (isWorking) return@DialogActionItem
+                    isWorking = true
+                    errorMessage = null
+                    scope.launch {
+                        runCatching { viewModel.createShareLink(recipe) }
+                            .onSuccess { link = it }
+                            .onFailure { errorMessage = it.message ?: "Could not create a share link." }
+                        isWorking = false
+                    }
+                },
+            )
+            DialogActionItem(
+                text = "Share as text",
+                onClick = {
+                    shareText(RecipeShareTextFormatter.format(recipe))
+                    onDismiss()
+                },
+            )
+        } else {
+            Text(
+                link!!.url,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.height(BasilSpacing.md))
+            DialogActionItem(
+                text = "Share full recipe",
+                onClick = {
+                    shareText(RecipeShareTextFormatter.format(recipe, link!!.url))
+                },
+            )
+            DialogActionItem(
+                text = "Revoke link",
+                onClick = {
+                    val token = link!!.token
+                    isWorking = true
+                    scope.launch {
+                        runCatching { viewModel.revokeShareLink(token) }
+                            .onSuccess { link = null }
+                            .onFailure { errorMessage = it.message ?: "Could not revoke the link." }
+                        isWorking = false
+                    }
+                },
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        errorMessage?.let { message ->
+            Spacer(Modifier.height(BasilSpacing.sm))
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
             )
         }
     }

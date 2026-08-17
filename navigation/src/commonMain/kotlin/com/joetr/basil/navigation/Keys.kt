@@ -10,6 +10,9 @@ public data object RecipesKey
 public data class RecipeDetailKey(val id: String)
 
 @Serializable
+public data class SharedRecipeKey(val token: String)
+
+@Serializable
 public data class EditorKey(
     val recipeId: String? = null,
     val extractedJson: String? = null,

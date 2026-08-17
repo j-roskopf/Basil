@@ -1,6 +1,7 @@
 package com.joetr.basil.app
 
 import android.content.Intent
+import android.net.Uri
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
@@ -42,9 +43,21 @@ public class MainActivity : ComponentActivity() {
     }
 
     private fun handleShareIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_VIEW) {
+            extractSharedToken(intent.data)?.let { ShareIntentHolder.pendingSharedToken = it }
+            return
+        }
         if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") return
         val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
         val url = text.lines().firstOrNull { it.startsWith("http://") || it.startsWith("https://") } ?: text.trim()
         if (url.isNotBlank()) ShareIntentHolder.pendingUrl = url
+    }
+
+    private fun extractSharedToken(uri: Uri?): String? {
+        if (uri?.scheme != "https" || uri.host != "basil.joetr.com") return null
+        val segments = uri.pathSegments
+        return segments.getOrNull(0)?.takeIf { it == "share" }
+            ?.let { segments.getOrNull(1) }
+            ?.takeIf { it.isNotBlank() }
     }
 }

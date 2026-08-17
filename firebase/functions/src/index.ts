@@ -7,3 +7,8 @@ if (getApps().length === 0) {
 export { extractRecipe } from "./extract/extractRecipe";
 export { proxyImage } from "./imageProxy";
 export { requestEmailOtp, verifyEmailOtp } from "./otp/emailOtp";
+export {
+  createSharedRecipe,
+  getSharedRecipe,
+  revokeSharedRecipe,
+} from "./share/sharedRecipes";

@@ -5,6 +5,7 @@ public fun parseWebRoute(path: String): Any? {
     return when (segments.firstOrNull()) {
         null, "recipes" -> if (segments.size == 1) RecipesKey else segments.getOrNull(1)?.let { RecipeDetailKey(it) }
         "recipe" -> segments.getOrNull(1)?.let { RecipeDetailKey(it) }
+        "share" -> segments.getOrNull(1)?.let { SharedRecipeKey(it) }
         "import" -> ImportKey
         "account" -> AccountKey
         else -> null
