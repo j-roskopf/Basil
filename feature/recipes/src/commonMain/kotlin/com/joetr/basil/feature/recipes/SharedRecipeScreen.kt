@@ -28,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.joetr.basil.domain.model.SharedRecipe
-import com.joetr.basil.domain.share.RecipeShareTextFormatter
 import com.joetr.basil.domain.usecase.GetSharedRecipeUseCase
 import com.joetr.basil.domain.usecase.SaveSharedRecipeCopyUseCase
 import com.joetr.basil.platform.shareText
@@ -124,7 +123,7 @@ public fun SharedRecipeScreen(
                 saved = saved,
                 saveError = saveError,
                 onBack = onBack,
-                onShare = { shareText(RecipeShareTextFormatter.format(current.recipe.toRecipe(), current.recipe.url)) },
+                onShare = { shareText(current.recipe.url) },
                 onSave = {
                     saveError = null
                     scope.launch {
@@ -255,21 +254,3 @@ private fun SharedRecipeMetaItem(
         Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
-private fun SharedRecipe.toRecipe(): com.joetr.basil.domain.model.Recipe =
-    com.joetr.basil.domain.model.Recipe(
-        id = token,
-        ownerId = "shared",
-        title = title,
-        description = description,
-        imageUrl = imageUrl,
-        sourceUrl = sourceUrl,
-        servings = servings,
-        prepMinutes = prepMinutes,
-        cookMinutes = cookMinutes,
-        ingredients = ingredients,
-        steps = steps,
-        tags = tags,
-        createdAt = 0L,
-        updatedAt = 0L,
-    )

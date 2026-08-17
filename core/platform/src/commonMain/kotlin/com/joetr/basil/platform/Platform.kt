@@ -74,6 +74,9 @@ public expect fun openUrl(url: String)
 /** Shares text with other apps, or copies it where the platform has no share sheet. */
 public expect fun shareText(text: String)
 
+/** Copies text to the platform clipboard. */
+public expect fun copyText(text: String)
+
 public expect fun keepScreenOn(enabled: Boolean)
 
 public expect fun hapticSuccess()
