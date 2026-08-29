@@ -444,6 +444,7 @@ public fun RecipeImage(
     imageModel: Any?,
     modifier: Modifier = Modifier,
     shape: RoundedCornerShape = RoundedCornerShape(BasilRadii.thumb),
+    contentScale: ContentScale = ContentScale.Crop,
 ) {
     Box(modifier = modifier.clip(shape)) {
         when (val model = imageModel ?: imageUrlForDisplay(imageUrl)) {
@@ -453,7 +454,7 @@ public fun RecipeImage(
                     model = model,
                     contentDescription = title,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
+                    contentScale = contentScale,
                 )
             }
         }

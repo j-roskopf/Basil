@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,12 +46,14 @@ import com.joetr.basil.platform.keepScreenOn
 import com.joetr.basil.platform.playTimerCompleteSound
 import com.joetr.basil.ui.components.CircleIconButton
 import com.joetr.basil.ui.components.IngredientLine
-import com.joetr.basil.ui.icons.BasilIcon
+import com.joetr.basil.ui.components.RecipeImage
+import com.joetr.basil.ui.components.RecipeImageFullscreen
 import com.joetr.basil.ui.icons.BasilIcons
 import com.joetr.basil.ui.layout.basilSafeArea
 import com.joetr.basil.ui.theme.BasilColors
 import com.joetr.basil.ui.theme.BasilRadii
 import com.joetr.basil.ui.theme.BasilSpacing
+import com.joetr.basil.ui.theme.BasilTheme
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
@@ -59,9 +63,17 @@ public class CookViewModel(
     public fun recipe(id: String) = observeRecipe(id)
 }
 
+private sealed interface CookPage {
+    data object Ingredients : CookPage
+    data object Image : CookPage
+    data class Step(val index: Int) : CookPage
+}
+
 /**
- * A deliberately sparse, paged cooking surface. Page zero is ingredients; the following
- * pages center the current instruction while keeping neighbouring instructions subdued.
+ * A deliberately sparse, paged cooking surface. Cook mode always uses a dark canvas so
+ * light-mode app theme cannot wash out step and ingredient text. Pages are ingredients,
+ * then steps, then an optional recipe image (image-only recipes open on the image so the
+ * display can stay awake while cooking from a photo).
  */
 @Composable
 public fun CookScreen(
@@ -70,14 +82,50 @@ public fun CookScreen(
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Cook canvas is always dark; nest a dark scheme so Material tokens stay legible.
+    BasilTheme(darkTheme = true) {
+        CookScreenContent(
+            viewModel = viewModel,
+            recipeId = recipeId,
+            onExit = onExit,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun CookScreenContent(
+    viewModel: CookViewModel,
+    recipeId: String,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val recipe by viewModel.recipe(recipeId).collectAsState(initial = null)
     val steps = recipe?.steps.orEmpty()
-    var page by remember { mutableIntStateOf(0) }
+    val ingredients = recipe?.ingredients.orEmpty()
+    val imageModel = recipe?.localImageId?.let { "local-image://$it" }
+    val imageUrl = recipe?.imageUrl
+    val hasImage = imageModel != null || !imageUrl.isNullOrBlank()
+
+    val pages = remember(ingredients.size, steps.size, hasImage) {
+        buildCookPages(
+            hasIngredients = ingredients.isNotEmpty(),
+            stepCount = steps.size,
+            hasImage = hasImage,
+        )
+    }
+
+    var page by remember(recipeId) { mutableIntStateOf(0) }
     var dragAccum by remember { mutableFloatStateOf(0f) }
     var timerSeconds by remember { mutableLongStateOf(0L) }
     var timerRunning by remember { mutableStateOf(false) }
     var showTimer by remember { mutableStateOf(false) }
-    keepScreenOn(true)
+    var showFullscreenImage by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        keepScreenOn(true)
+        onDispose { keepScreenOn(false) }
+    }
 
     LaunchedEffect(timerRunning, timerSeconds) {
         if (!timerRunning || timerSeconds <= 0L) return@LaunchedEffect
@@ -91,22 +139,24 @@ public fun CookScreen(
     }
 
     fun goTo(target: Int) {
-        page = target.coerceIn(0, steps.size)
+        page = target.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
         timerSeconds = 0L
         timerRunning = false
         showTimer = false
     }
 
-    val stepIndex = page - 1
-    val currentMinutes = steps.getOrNull(stepIndex)?.minutes
+    val currentPage = pages.getOrNull(page)
+    val stepIndex = (currentPage as? CookPage.Step)?.index
+    val currentMinutes = stepIndex?.let { steps.getOrNull(it)?.minutes }
     val muted = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.27f)
+    val lastPage = pages.lastIndex.coerceAtLeast(0)
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(BasilColors.CookBackground)
             .basilSafeArea()
-            .pointerInput(page, steps.size) {
+            .pointerInput(page, pages.size) {
                 detectHorizontalDragGestures(
                     onHorizontalDrag = { _, amount -> dragAccum += amount },
                     onDragEnd = {
@@ -127,7 +177,7 @@ public fun CookScreen(
                 modifier = Modifier.align(Alignment.CenterStart).padding(start = 2.dp),
             )
         }
-        if (page < steps.size) {
+        if (page < lastPage) {
             Text(
                 "›",
                 color = muted,
@@ -136,37 +186,63 @@ public fun CookScreen(
             )
         }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .widthIn(max = 330.dp)
-                .padding(horizontal = 30.dp)
-                .verticalScroll(rememberScrollState())
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { if (page < steps.size) goTo(page + 1) },
-            verticalArrangement = Arrangement.Center,
-        ) {
-            if (page == 0) {
-                if (recipe?.ingredients.isNullOrEmpty()) {
-                    Text("No ingredients for this recipe.", style = MaterialTheme.typography.bodyLarge, color = muted)
-                } else {
-                    recipe?.ingredients?.forEach { ingredient ->
-                        IngredientLine(ingredient, Modifier.padding(vertical = 5.dp))
+        when (currentPage) {
+            CookPage.Image -> {
+                CookImagePage(
+                    title = recipe?.title ?: "Recipe",
+                    imageModel = imageModel,
+                    imageUrl = imageUrl,
+                    onOpenFullscreen = { showFullscreenImage = true },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 30.dp, vertical = 72.dp),
+                )
+            }
+            CookPage.Ingredients, is CookPage.Step, null -> {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .widthIn(max = 330.dp)
+                        .padding(horizontal = 30.dp)
+                        .verticalScroll(rememberScrollState())
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { if (page < lastPage) goTo(page + 1) },
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    when (currentPage) {
+                        CookPage.Ingredients, null -> {
+                            if (ingredients.isEmpty()) {
+                                Text(
+                                    "No ingredients for this recipe.",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = muted,
+                                )
+                            } else {
+                                ingredients.forEach { ingredient ->
+                                    IngredientLine(ingredient, Modifier.padding(vertical = 5.dp))
+                                }
+                            }
+                        }
+                        is CookPage.Step -> {
+                            val index = currentPage.index
+                            steps.getOrNull(index - 1)?.let { previous ->
+                                FocusStepText(index, previous.text, muted)
+                                Spacer(Modifier.padding(top = 13.dp))
+                            }
+                            FocusStepText(
+                                index + 1,
+                                steps[index].text,
+                                MaterialTheme.colorScheme.onSurface,
+                            )
+                            steps.getOrNull(index + 1)?.let { next ->
+                                Spacer(Modifier.padding(top = 13.dp))
+                                FocusStepText(index + 2, next.text, muted)
+                            }
+                        }
+                        CookPage.Image -> Unit
                     }
-                }
-            } else if (steps.isEmpty()) {
-                Text("No steps for this recipe.", style = MaterialTheme.typography.bodyLarge, color = muted)
-            } else {
-                steps.getOrNull(stepIndex - 1)?.let { previous ->
-                    FocusStepText(stepIndex, previous.text, muted)
-                    Spacer(Modifier.padding(top = 13.dp))
-                }
-                FocusStepText(stepIndex + 1, steps[stepIndex].text, MaterialTheme.colorScheme.onSurface)
-                steps.getOrNull(stepIndex + 1)?.let { next ->
-                    Spacer(Modifier.padding(top = 13.dp))
-                    FocusStepText(stepIndex + 2, next.text, muted)
                 }
             }
         }
@@ -183,7 +259,7 @@ public fun CookScreen(
                     ) { goTo(page - 1) },
             )
         }
-        if (page < steps.size) {
+        if (page < lastPage) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
@@ -203,16 +279,32 @@ public fun CookScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             CircleIconButton(BasilIcons.Close, "Close cook mode", onExit)
-            if (currentMinutes != null) {
-                CircleIconButton(
-                    icon = BasilIcons.Timer,
-                    contentDescription = "Timer",
-                    onClick = {
-                        showTimer = !showTimer
-                        if (showTimer && timerSeconds == 0L) timerSeconds = currentMinutes * 60L
-                    },
-                    tint = if (showTimer || timerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(BasilSpacing.sm)) {
+                if (hasImage && currentPage != CookPage.Image) {
+                    CircleIconButton(
+                        icon = BasilIcons.Photo,
+                        contentDescription = "View recipe image",
+                        onClick = {
+                            val imagePage = pages.indexOf(CookPage.Image)
+                            if (imagePage >= 0) goTo(imagePage) else showFullscreenImage = true
+                        },
+                    )
+                }
+                if (currentMinutes != null) {
+                    CircleIconButton(
+                        icon = BasilIcons.Timer,
+                        contentDescription = "Timer",
+                        onClick = {
+                            showTimer = !showTimer
+                            if (showTimer && timerSeconds == 0L) timerSeconds = currentMinutes * 60L
+                        },
+                        tint = if (showTimer || timerRunning) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                }
             }
         }
 
@@ -227,7 +319,11 @@ public fun CookScreen(
                     .padding(horizontal = BasilSpacing.lg, vertical = BasilSpacing.sm),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(formatTimer(timerSeconds), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    formatTimer(timerSeconds),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
                 Text(
                     if (timerRunning) "Tap to pause" else "Tap to start",
                     style = MaterialTheme.typography.labelSmall,
@@ -245,8 +341,72 @@ public fun CookScreen(
                 .padding(horizontal = 14.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(recipe?.title ?: "Recipe", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+            Text(
+                recipe?.title ?: "Recipe",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+            )
         }
+
+        if (showFullscreenImage && hasImage) {
+            RecipeImageFullscreen(
+                title = recipe?.title ?: "Recipe",
+                imageModel = imageModel,
+                imageUrl = imageUrl,
+                onDismiss = { showFullscreenImage = false },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CookImagePage(
+    title: String,
+    imageModel: Any?,
+    imageUrl: String?,
+    onOpenFullscreen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onOpenFullscreen,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (imageModel == null && imageUrl.isNullOrBlank()) {
+            Text(
+                "No image for this recipe.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.27f),
+            )
+        } else {
+            RecipeImage(
+                title = title,
+                imageUrl = imageUrl,
+                imageModel = imageModel,
+                modifier = Modifier.fillMaxSize(),
+                shape = RoundedCornerShape(BasilRadii.image),
+                contentScale = ContentScale.Fit,
+            )
+        }
+    }
+}
+
+private fun buildCookPages(
+    hasIngredients: Boolean,
+    stepCount: Int,
+    hasImage: Boolean,
+): List<CookPage> {
+    val imageOnly = hasImage && !hasIngredients && stepCount == 0
+    if (imageOnly) return listOf(CookPage.Image)
+    return buildList {
+        add(CookPage.Ingredients)
+        repeat(stepCount) { add(CookPage.Step(it)) }
+        if (hasImage) add(CookPage.Image)
     }
 }
 
@@ -254,7 +414,11 @@ public fun CookScreen(
 private fun FocusStepText(number: Int, text: String, color: Color) {
     Text(
         text = "$number  $text",
-        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, lineHeight = 30.sp, fontWeight = FontWeight.Medium),
+        style = MaterialTheme.typography.bodyLarge.copy(
+            fontSize = 17.sp,
+            lineHeight = 30.sp,
+            fontWeight = FontWeight.Medium,
+        ),
         color = color,
         textAlign = TextAlign.Start,
         modifier = Modifier.fillMaxWidth(),
