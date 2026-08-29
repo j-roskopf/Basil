@@ -83,7 +83,7 @@ public class RecipeSyncService(
 
     public suspend fun enqueueRecipe(recipe: Recipe) {
         backend.enqueueUpsert(recipe)
-        scheduleSync()
+        syncNow()
     }
 
     public suspend fun queueRecipe(recipe: Recipe) {
@@ -92,7 +92,7 @@ public class RecipeSyncService(
 
     public suspend fun enqueueDelete(recipeId: String, updatedAt: Long) {
         backend.enqueueDelete(recipeId, updatedAt)
-        scheduleSync()
+        syncNow()
     }
 
     public suspend fun onLocalWrite() = scheduleSync()
